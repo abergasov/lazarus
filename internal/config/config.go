@@ -10,20 +10,10 @@ import (
 )
 
 type AppConfig struct {
-	AppPort         int       `yaml:"app_port"`
-	EnableTelemetry bool      `yaml:"enable_telemetry"`
-	MigratesFolder  string    `yaml:"migrates_folder"`
-	ConfigDB        DBConf    `yaml:"conf_db"`
-	ConfigGraph     GraphConf `yaml:"conf_graph"`
-}
-
-type GraphConf struct {
-	Address        string `yaml:"address" json:"address,omitempty"`
-	Port           string `yaml:"port" json:"port,omitempty"`
-	User           string `yaml:"user" json:"user,omitempty"`
-	Pass           string `yaml:"pass" json:"pass,omitempty"`
-	DBName         string `yaml:"db_name" json:"db_name,omitempty"`
-	MaxConnections int    `yaml:"max_connections" json:"max_connections,omitempty"`
+	AppPort         int    `yaml:"app_port"`
+	EnableTelemetry bool   `yaml:"enable_telemetry"`
+	MigratesFolder  string `yaml:"migrates_folder"`
+	ConfigDB        DBConf `yaml:"conf_db"`
 }
 
 type DBConf struct {

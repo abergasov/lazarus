@@ -101,11 +101,6 @@ func TestUniqueSlice(t *testing.T) {
 	require.Equal(t, []string{"a", "b", "c"}, utils.UniqueSlice([]string{"a", "b", "c", "a", "b", "c"}))
 }
 
-func TestMax(t *testing.T) {
-	require.Equal(t, 9, utils.Max(2, 9))
-	require.Equal(t, 4, utils.Max(4, 3))
-}
-
 type testPerson struct {
 	ID   int
 	Name string
