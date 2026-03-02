@@ -1,9 +1,10 @@
 package testhelpers
 
 import (
-	"github.com/stretchr/testify/require"
 	"net"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
 // GetFreePort generate a free tcp port for testing

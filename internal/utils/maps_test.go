@@ -1,11 +1,12 @@
 package utils_test
 
 import (
-	"github.com/stretchr/testify/require"
-	"go_project_template/internal/utils"
+	"lazarus/internal/utils"
 	"sort"
 	"strings"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
 func TestMaps(t *testing.T) {

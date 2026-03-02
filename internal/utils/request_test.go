@@ -4,7 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"go_project_template/internal/utils"
+	"lazarus/internal/utils"
 	"net/http"
 	"net/http/httptest"
 	"testing"

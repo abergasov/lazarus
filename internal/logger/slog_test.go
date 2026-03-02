@@ -3,8 +3,8 @@ package logger_test
 import (
 	"bytes"
 	"fmt"
-	"go_project_template/internal/logger"
 	"io"
+	"lazarus/internal/logger"
 	"os"
 	"sync"
 	"testing"

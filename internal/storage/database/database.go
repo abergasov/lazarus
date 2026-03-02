@@ -4,8 +4,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"go_project_template/internal/config"
-	"go_project_template/internal/logger"
+	"lazarus/internal/config"
+	"lazarus/internal/logger"
 	"time"
 
 	"github.com/golang-migrate/migrate/v4"

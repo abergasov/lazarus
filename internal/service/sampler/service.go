@@ -2,8 +2,8 @@ package sampler
 
 import (
 	"context"
-	"go_project_template/internal/logger"
-	"go_project_template/internal/repository"
+	"lazarus/internal/logger"
+	"lazarus/internal/repository"
 )
 
 type Service struct {
