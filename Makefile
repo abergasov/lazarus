@@ -61,7 +61,7 @@ dev_up_ci: prepare_ci stop ## Runs local environment for ci
 
 dev_up: stop ## Runs local environment
 	${info Running docker-compose up...}
-	GIT_HASH=${FILE_HASH} docker compose -p ${PROJECT_NAME} up --build dbPostgres
+	GIT_HASH=${FILE_HASH} docker compose -p ${PROJECT_NAME} up --build dbPostgres minio minio_init
 
 build: ## Builds binary
 	@echo "-- building binary"

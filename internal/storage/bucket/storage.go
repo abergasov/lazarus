@@ -1,0 +1,76 @@
+package bucket
+
+import (
+	"context"
+	"fmt"
+	"io"
+
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/credentials"
+	"github.com/aws/aws-sdk-go-v2/service/s3"
+)
+
+type Client struct {
+	s3     *s3.Client
+	bucket string
+	prefix string
+}
+
+func NewClient(ctx context.Context, cfg *S3Conf) (*Client, error) {
+	awsCfg, err := config.LoadDefaultConfig(ctx,
+		config.WithRegion(cfg.Region),
+		config.WithCredentialsProvider(
+			credentials.NewStaticCredentialsProvider(
+				cfg.AccessKeyID,
+				cfg.SecretAccessKey,
+				"",
+			),
+		),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("load aws config: %w", err)
+	}
+
+	if cfg.Endpoint != "" {
+		awsCfg.BaseEndpoint = aws.String(cfg.Endpoint)
+	}
+	client := s3.NewFromConfig(awsCfg, func(o *s3.Options) {
+		o.UsePathStyle = cfg.UsePathStyle
+	})
+
+	return &Client{
+		s3:     client,
+		bucket: cfg.Bucket,
+		prefix: cfg.Prefix,
+	}, nil
+}
+
+func (c *Client) Upload(ctx context.Context, path string, r io.Reader) error {
+	key := c.prefix + path
+
+	_, err := c.s3.PutObject(ctx, &s3.PutObjectInput{
+		Bucket: aws.String(c.bucket),
+		Key:    aws.String(key),
+		Body:   r,
+	})
+	if err != nil {
+		return fmt.Errorf("put object: %w", err)
+	}
+
+	return nil
+}
+
+func (c *Client) Download(ctx context.Context, path string) (io.ReadCloser, error) {
+	key := c.prefix + path
+
+	out, err := c.s3.GetObject(ctx, &s3.GetObjectInput{
+		Bucket: aws.String(c.bucket),
+		Key:    aws.String(key),
+	})
+	if err != nil {
+		return nil, fmt.Errorf("get object: %w", err)
+	}
+
+	return out.Body, nil
+}

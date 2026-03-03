@@ -8,6 +8,7 @@ import (
 	"lazarus/internal/logger"
 	"lazarus/internal/repository"
 	samplerService "lazarus/internal/service/sampler"
+	"lazarus/internal/storage/bucket"
 	"lazarus/internal/storage/database"
 	"os"
 	"strings"
@@ -23,6 +24,9 @@ type TestContainer struct {
 	Cfg    *config.AppConfig
 	Logger logger.AppLogger
 
+	Conn         database.DBConnector
+	BucketClient *bucket.Client
+
 	Repo *repository.Repo
 
 	ServiceSampler *samplerService.Service
@@ -36,6 +40,8 @@ func GetClean(t *testing.T) *TestContainer {
 	dbConnect, err := database.InitDBConnect(ctx, &conf.ConfigDB, guessMigrationDir(t))
 	require.NoError(t, err)
 	cleanupDB(t, dbConnect)
+	storageClient, err := bucket.NewClient(ctx, conf.S3)
+	require.NoError(t, err)
 	t.Cleanup(func() {
 		cancel()
 		require.NoError(t, dbConnect.Client().Close())
@@ -48,10 +54,15 @@ func GetClean(t *testing.T) *TestContainer {
 	// service init
 	serviceSampler := samplerService.InitService(ctx, appLog, repo)
 	return &TestContainer{
-		Ctx:            ctx,
-		Cfg:            conf,
-		Logger:         appLog,
-		Repo:           repo,
+		Ctx:    ctx,
+		Cfg:    conf,
+		Logger: appLog,
+
+		Conn:         dbConnect,
+		BucketClient: storageClient,
+
+		Repo: repo,
+
 		ServiceSampler: serviceSampler,
 	}
 }
@@ -84,6 +95,15 @@ func getTestConfig() *config.AppConfig {
 			Pass:           "AOifjwelmc8dw",
 			DBName:         "sybill_test",
 			MaxConnections: 10,
+		},
+		S3: &bucket.S3Conf{
+			Region:          "us-east-1",
+			Endpoint:        "http://127.0.0.1:9000",
+			Bucket:          "lazarus",
+			AccessKeyID:     "minioadmin",
+			SecretAccessKey: "minioadmin",
+			Prefix:          "test/",
+			UsePathStyle:    true,
 		},
 	}
 }
