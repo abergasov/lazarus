@@ -1,7 +1,23 @@
 <script lang="ts">
-    export let data: { me: { id: string; email?: string; display_name?: string } };
+    import { onMount } from "svelte";
+    import { goto } from "$app/navigation";
+
+    let email = "";
+
+    onMount(async () => {
+        const r = await fetch("/api/v1/user/me", { credentials: "include" });
+        if (!r.ok) {
+            await goto("/");
+            return;
+        }
+        const me = await r.json();
+        email = me.email ?? "";
+    });
 </script>
 
-<h1>Dashboard</h1>
-<p>user: {data.me.id}</p>
-{#if data.me.email}<p>email: {data.me.email}</p>{/if}
+<h1>Account</h1>
+<p>{email}</p>
+
+<form method="POST" action="/api/v1/auth/logout">
+    <button>Logout</button>
+</form>

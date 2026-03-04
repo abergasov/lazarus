@@ -1,13 +1,9 @@
 import { redirect } from "@sveltejs/kit";
-import { apiGet } from "$lib/api";
 
-type Me = { id: string; email?: string; display_name?: string };
+export const ssr = false;
 
-export async function load() {
-    try {
-        const me = await apiGet<Me>("/api/me");
-        return { me };
-    } catch {
-        throw redirect(302, "/login");
-    }
+export async function load({ fetch }) {
+    const r = await fetch("/api/v1/user/me", { credentials: "include" });
+    if (!r.ok) throw redirect(302, "/");
+    return { me: await r.json() };
 }

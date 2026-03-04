@@ -1,34 +1,23 @@
-create table public.app_users (
-      id uuid primary key,
-      email text,
-      display_name text,
-      avatar_url text,
-      created_at timestamptz not null default now()
+create table one_time_key
+(
+    key_id  uuid   null,
+    key_val varchar(255) null,
+    expires timestamp    null,
+    constraint one_time_key_pk primary key (key_id)
 );
 
-alter table public.app_users enable row level security;
+create type oauth_provider as enum (
+    'google',
+    'facebook'
+);
 
--- helper: current user id from request context (set by API)
-create function public.current_user_id()
-    returns uuid
-    language sql
-    stable
-as $$
-select nullif(current_setting('request.jwt.claim.sub', true), '')::uuid
-$$;
-
-create policy app_users_self_read
-    on public.app_users
-    for select
-    using (id = public.current_user_id());
-
-create policy app_users_self_insert
-    on public.app_users
-    for insert
-    with check (id = public.current_user_id());
-
-create policy app_users_self_update
-    on public.app_users
-    for update
-    using (id = public.current_user_id())
-    with check (id = public.current_user_id());
+create table users
+(
+    u_id         serial constraint users_pk primary key,
+    provider     oauth_provider,
+    created_at   timestamp,
+    updated_at   timestamp,
+    email        varchar,
+    user_locale  varchar,
+    user_name    varchar
+);

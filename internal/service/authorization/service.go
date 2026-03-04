@@ -6,8 +6,12 @@ import (
 	"lazarus/internal/config"
 	"lazarus/internal/entities"
 	"lazarus/internal/logger"
-	"lazarus/internal/utils"
+	"lazarus/internal/repository"
 	"strings"
+	"time"
+
+	"github.com/golang-jwt/jwt/v4"
+	"github.com/google/uuid"
 )
 
 type Service struct {
@@ -16,18 +20,22 @@ type Service struct {
 	log logger.AppLogger
 
 	supportedProviders map[string]struct{}
+	repo               *repository.Repo
+	jwtKey             []byte
 }
 
-func NewService(ctx context.Context, cfg *config.AppConfig, log logger.AppLogger) *Service {
+func NewService(ctx context.Context, log logger.AppLogger, cfg *config.AppConfig, repo *repository.Repo) *Service {
 	return &Service{
-		ctx: ctx,
-		cfg: cfg,
-		log: log,
+		ctx:  ctx,
+		cfg:  cfg,
+		log:  log,
+		repo: repo,
 
 		supportedProviders: map[string]struct{}{
 			"google": {},
 			"github": {},
 		},
+		jwtKey: []byte(cfg.JWTKey),
 	}
 }
 
@@ -36,27 +44,54 @@ func (s *Service) IsAllowedProvider(p string) bool {
 	return ok
 }
 
-func (s *Service) ExchangeCodeForSession(ctx context.Context, code, verifier string) (*entities.SupabaseAuthSession, error) {
-	// Supabase PKCE code exchange happens at:
-	// POST {SUPABASE_URL}/auth/v1/token?grant_type=pkce
-	// form: auth_code=<code>&code_verifier=<verifier>
-	//
-	// The docs show exchanging "code" for session (pkce flow). :contentReference[oaicite:0]{index=0}
-	endpoint := s.cfg.AuthConfig.SupabaseURL + "/auth/v1/token?grant_type=pkce"
-	sess, resCode, err := utils.PostCurl[entities.SupabaseAuthSession](ctx, endpoint, map[string]string{
-		"auth_code":     code,
-		"code_verifier": verifier,
-	}, map[string]string{
-		"Content-Type":  "application/json",
-		"apikey":        s.cfg.AuthConfig.SupabaseAnon,
-		"Authorization": "Bearer " + s.cfg.AuthConfig.SupabaseAnon,
-	})
+func (s *Service) GetTokenValidUntil() int64 {
+	return time.Now().Add(time.Minute * time.Duration(s.cfg.JWTLive)).Unix()
+}
+
+func (s *Service) GetCodeChallenge(ctx context.Context, key uuid.UUID) (string, error) {
+	return s.repo.GetKey(ctx, key)
+}
+
+func (s *Service) SetCodeChallenge(ctx context.Context, key string) (uuid.UUID, error) {
+	return s.repo.SetKey(ctx, key)
+}
+
+func (s *Service) GoogleLogin(ctx context.Context, googleUser *entities.GoogleUser) (string, error) {
+	lg := s.log.With(
+		logger.WithString("provider", "google"),
+		logger.WithEmail(googleUser.Email),
+		logger.WithUserName(googleUser.Name),
+	)
+	usr, err := s.repo.GetUserByMail(ctx, googleUser.Email)
 	if err != nil {
-		s.log.Error("error exchanging code for session", err, logger.WithHTTPCode(resCode))
-		return nil, errors.New("error exchanging code for session")
+		lg.Error("error load user by mail", err)
+		return "", errors.New("error load user by mail")
 	}
-	if sess.AccessToken == "" || sess.RefreshToken == "" {
-		return nil, errors.New("empty session tokens")
+	if usr == nil {
+		if err = s.repo.AddGoogleUser(ctx, googleUser); err != nil {
+			lg.Error("error add user", err)
+			return "", errors.New("error add user")
+		}
+		usr, err = s.repo.GetUserByMail(ctx, googleUser.Email)
+		if err != nil {
+			lg.Error("error load user by mail after creation", err)
+			return "", errors.New("error load user by mail after creation")
+		}
 	}
-	return sess, nil
+	//user exist or created, generate jwt
+	jwtKey, err := s.generateJWT(usr)
+	if err != nil {
+		lg.Error("error generate jwt", err)
+	}
+	return jwtKey, err
+}
+
+func (s *Service) generateJWT(usr *entities.User) (string, error) {
+	at := jwt.NewWithClaims(jwt.SigningMethodHS512, entities.UserJWT{
+		UserID: usr.ID,
+		RegisteredClaims: jwt.RegisteredClaims{
+			ExpiresAt: jwt.NewNumericDate(time.Now().Add(100 * time.Hour)),
+		},
+	})
+	return at.SignedString(s.jwtKey)
 }

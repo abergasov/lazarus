@@ -1,33 +1,34 @@
 package entities
 
 import (
-	"errors"
 	"time"
 
-	"github.com/google/uuid"
+	"github.com/golang-jwt/jwt/v4"
 )
 
-type User struct {
-	ID          uuid.UUID `db:"id" json:"id"`
-	Email       string    `db:"email" json:"email"`
-	DisplayName string    `db:"display_name" json:"display_name"`
-	AvatarURL   string    `db:"avatar_url" json:"avatar_url"`
-	CreatedAt   time.Time `db:"created_at" json:"created_at"`
+type GoogleUser struct {
+	ID            string `json:"id"`
+	Email         string `json:"email"`
+	VerifiedEmail bool   `json:"verified_email"`
+	Name          string `json:"name"`
+	GivenName     string `json:"given_name"`
+	FamilyName    string `json:"family_name"`
+	Picture       string `json:"picture"`
 }
 
-func (u *User) Validate() error {
-	if u.ID == uuid.Nil {
-		return errors.New("user.id is empty")
-	}
-	// email can be empty for some providers; don't hard fail
-	if len(u.Email) > 320 {
-		return errors.New("user.email too long")
-	}
-	if len(u.DisplayName) > 256 {
-		return errors.New("user.display_name too long")
-	}
-	if len(u.AvatarURL) > 2048 {
-		return errors.New("user.avatar_url too long")
-	}
-	return nil
+type User struct {
+	ID        int64     `db:"u_id" json:"id"`
+	Email     string    `db:"email" json:"email"`
+	UserName  string    `db:"user_name" json:"user_name"`
+	CreatedAt time.Time `db:"created_at" json:"created_at"`
+	UpdatedAt time.Time `db:"updated_at" json:"updated_at"`
+}
+
+type UserJWT struct {
+	UserID int64 `json:"id"`
+	jwt.RegisteredClaims
+}
+
+func (u *UserJWT) GetUserID() int64 {
+	return u.UserID
 }

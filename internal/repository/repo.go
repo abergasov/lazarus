@@ -7,7 +7,7 @@ type Repo struct {
 }
 
 var AllTables = []string{
-	// add table names here
+	TableOneTimeKey,
 }
 
 func InitRepo(db database.DBConnector) *Repo {

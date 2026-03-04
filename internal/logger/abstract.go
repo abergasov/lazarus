@@ -38,3 +38,11 @@ func WithFloat64(key string, val float64) Field {
 func WithInt(key string, val int) Field {
 	return Field{a: slog.Int(key, val)}
 }
+
+func WithEmail(val string) Field {
+	return WithString("email", val)
+}
+
+func WithUserName(val string) Field {
+	return WithString("user_name", val)
+}
