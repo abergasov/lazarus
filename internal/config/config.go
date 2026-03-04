@@ -42,6 +42,9 @@ func InitConf(confFile string) (*AppConfig, error) {
 	if err = yaml.NewDecoder(file).Decode(&cfg); err != nil {
 		return nil, fmt.Errorf("error decode config file: %w", err)
 	}
+	if cfg.S3 == nil {
+		return nil, fmt.Errorf("s3 config is required")
+	}
 	if err = cfg.S3.Validate(); err != nil {
 		return nil, fmt.Errorf("error validate s3 section: %w", err)
 	}

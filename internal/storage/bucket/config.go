@@ -12,7 +12,7 @@ type S3Conf struct {
 	UsePathStyle    bool   `yaml:"use_path_style"` // hetzner usually false; minio often true
 }
 
-func (c S3Conf) Validate() error {
+func (c *S3Conf) Validate() error {
 	if c.Bucket == "" {
 		return fmt.Errorf("s3.bucket is required")
 	}

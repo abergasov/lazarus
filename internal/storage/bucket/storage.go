@@ -48,16 +48,13 @@ func NewClient(ctx context.Context, cfg *S3Conf) (*Client, error) {
 
 func (c *Client) Upload(ctx context.Context, path string, r io.Reader) error {
 	key := c.prefix + path
-
-	_, err := c.s3.PutObject(ctx, &s3.PutObjectInput{
+	if _, err := c.s3.PutObject(ctx, &s3.PutObjectInput{
 		Bucket: aws.String(c.bucket),
 		Key:    aws.String(key),
 		Body:   r,
-	})
-	if err != nil {
+	}); err != nil {
 		return fmt.Errorf("put object: %w", err)
 	}
-
 	return nil
 }
 
@@ -71,6 +68,5 @@ func (c *Client) Download(ctx context.Context, path string) (io.ReadCloser, erro
 	if err != nil {
 		return nil, fmt.Errorf("get object: %w", err)
 	}
-
 	return out.Body, nil
 }

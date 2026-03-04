@@ -29,7 +29,9 @@ func TestClientCRUD(t *testing.T) {
 	// then
 	rc, err := container.BucketClient.Download(container.Ctx, key)
 	require.NoError(t, err)
-	defer rc.Close()
+	t.Cleanup(func() {
+		require.NoError(t, rc.Close())
+	})
 	got, err := io.ReadAll(rc)
 	require.NoError(t, err)
 	require.Equal(t, payload, got)
