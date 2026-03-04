@@ -8,3 +8,11 @@ conf_db:
   pass: AOifjwelmc8dw
   db_name: sybill
   max_connections: 10
+s3:
+  region: hel1
+  endpoint: https://abc.hel1.your-objectstorage.com
+  bucket: abc
+  access_key_id: ACCESS_KEY
+  secret_access_key: SECRET_KEY
+  prefix: dev/
+  use_path_style: false

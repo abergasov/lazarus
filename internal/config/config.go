@@ -2,6 +2,7 @@ package config
 
 import (
 	"fmt"
+	"lazarus/internal/storage/bucket"
 	"log"
 	"os"
 	"path/filepath"
@@ -10,10 +11,11 @@ import (
 )
 
 type AppConfig struct {
-	AppPort         int    `yaml:"app_port"`
-	EnableTelemetry bool   `yaml:"enable_telemetry"`
-	MigratesFolder  string `yaml:"migrates_folder"`
-	ConfigDB        DBConf `yaml:"conf_db"`
+	AppPort         int            `yaml:"app_port"`
+	EnableTelemetry bool           `yaml:"enable_telemetry"`
+	MigratesFolder  string         `yaml:"migrates_folder"`
+	ConfigDB        DBConf         `yaml:"conf_db"`
+	S3              *bucket.S3Conf `yaml:"s3"`
 }
 
 type DBConf struct {
@@ -40,6 +42,11 @@ func InitConf(confFile string) (*AppConfig, error) {
 	if err = yaml.NewDecoder(file).Decode(&cfg); err != nil {
 		return nil, fmt.Errorf("error decode config file: %w", err)
 	}
-
+	if cfg.S3 == nil {
+		return nil, fmt.Errorf("s3 config is required")
+	}
+	if err = cfg.S3.Validate(); err != nil {
+		return nil, fmt.Errorf("error validate s3 section: %w", err)
+	}
 	return &cfg, nil
 }
