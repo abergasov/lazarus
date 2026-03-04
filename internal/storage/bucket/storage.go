@@ -46,12 +46,13 @@ func NewClient(ctx context.Context, cfg *S3Conf) (*Client, error) {
 	}, nil
 }
 
-func (c *Client) Upload(ctx context.Context, path string, r io.Reader) error {
+func (c *Client) Upload(ctx context.Context, path string, r io.Reader, payloadBytesLen int64) error {
 	key := c.prefix + path
 	if _, err := c.s3.PutObject(ctx, &s3.PutObjectInput{
-		Bucket: aws.String(c.bucket),
-		Key:    aws.String(key),
-		Body:   r,
+		Bucket:        aws.String(c.bucket),
+		ContentLength: aws.Int64(payloadBytesLen),
+		Key:           aws.String(key),
+		Body:          r,
 	}); err != nil {
 		return fmt.Errorf("put object: %w", err)
 	}

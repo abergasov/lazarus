@@ -24,7 +24,7 @@ func TestClientCRUD(t *testing.T) {
 	key := uuid.NewString()
 
 	// when
-	require.NoError(t, container.BucketClient.Upload(container.Ctx, key, bytes.NewReader(payload)))
+	require.NoError(t, container.BucketClient.Upload(container.Ctx, key, bytes.NewReader(payload), int64(len(payload))))
 
 	// then
 	rc, err := container.BucketClient.Download(container.Ctx, key)
