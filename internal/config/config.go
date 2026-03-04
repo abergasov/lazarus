@@ -16,6 +16,18 @@ type AppConfig struct {
 	MigratesFolder  string         `yaml:"migrates_folder"`
 	ConfigDB        DBConf         `yaml:"conf_db"`
 	S3              *bucket.S3Conf `yaml:"s3"`
+	AuthConfig      Config         `yaml:"auth"`
+}
+
+type Config struct {
+	SupabaseURL    string `yaml:"supabase_url"`  // https://<ref>.supabase.co
+	SupabaseAnon   string `yaml:"supabase_anon"` // anon key
+	CallbackURL    string `yaml:"callback_url"`  // https://app.example.com/auth/callback  (must be in Supabase Redirect URLs allowlist)
+	FrontendURL    string `yaml:"frontend_url"`  // https://app.example.com
+	CookieDomain   string `yaml:"cookie_domain"` // optional
+	CookieSecure   bool   `yaml:"cookie_secure"`
+	CookieSameSite string `yaml:"cookie_same_site"` // "lax" | "strict" | "none"
+	Mode           string `yaml:"mode"`
 }
 
 type DBConf struct {

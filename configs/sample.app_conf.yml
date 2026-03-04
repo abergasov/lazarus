@@ -3,11 +3,21 @@ migrates_folder: migrations
 enable_telemetry: true
 conf_db:
   address: 127.0.0.1
-  port: 5449
+  port: 5559
   user: aHAjeK
   pass: AOifjwelmc8dw
-  db_name: sybill
+  db_name: lazarus
   max_connections: 10
+auth:
+  supabase_url: https://abc.supabase.co
+  supabase_anon: abcdefghijklmnopqrstuvwxyz0123456789
+  callback_url: http://localhost:8080/auth/callback
+  frontend_url: http://localhost:3000
+  cookie_domain:
+  # cookie_secure: 1 for production, 0 for development
+  cookie_secure: 0
+  cookie_same_site: lax
+  mode: development
 s3:
   region: hel1
   endpoint: https://abc.hel1.your-objectstorage.com

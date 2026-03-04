@@ -27,6 +27,10 @@ func WithInt64(key string, val int64) Field {
 	return Field{a: slog.Int64(key, val)}
 }
 
+func WithHTTPCode(val int) Field {
+	return WithInt("http_code", val)
+}
+
 func WithFloat64(key string, val float64) Field {
 	return Field{a: slog.Float64(key, val)}
 }

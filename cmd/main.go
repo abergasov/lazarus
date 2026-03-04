@@ -8,7 +8,7 @@ import (
 	"lazarus/internal/logger"
 	"lazarus/internal/repository"
 	"lazarus/internal/routes"
-	samplerService "lazarus/internal/service/sampler"
+	"lazarus/internal/service/authorization"
 	"lazarus/internal/storage/database"
 	"os"
 	"os/signal"
@@ -42,13 +42,13 @@ func main() {
 	}()
 
 	appLog.Info("init repositories")
-	repo := repository.InitRepo(dbConn)
+	_ = repository.InitRepo(dbConn)
 
 	appLog.Info("init services")
-	service := samplerService.InitService(ctx, appLog, repo)
+	service := authorization.NewService(ctx, appConf, appLog)
 
 	appLog.Info("init http service")
-	appHTTPServer := routes.InitAppRouter(appLog, service, fmt.Sprintf(":%d", appConf.AppPort), true)
+	appHTTPServer := routes.InitAppRouter(appLog, appConf, service, fmt.Sprintf(":%d", appConf.AppPort), true)
 	defer func() {
 		if err = appHTTPServer.Stop(); err != nil {
 			appLog.Fatal("unable to stop http service", err)

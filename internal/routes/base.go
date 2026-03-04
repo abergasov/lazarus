@@ -1,11 +1,14 @@
 package routes
 
 import (
+	"lazarus/internal/config"
 	"lazarus/internal/logger"
-	"lazarus/internal/service/sampler"
+	"lazarus/internal/service/authorization"
+	"time"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/adaptor"
+	"github.com/gofiber/fiber/v2/middleware/cors"
 	"github.com/gofiber/fiber/v2/middleware/recover"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/collectors"
@@ -15,17 +18,34 @@ import (
 type Server struct {
 	appAddr    string
 	log        logger.AppLogger
-	service    *sampler.Service
 	httpEngine *fiber.App
+	conf       *config.AppConfig
+
+	srvAuth *authorization.Service
 }
 
 // InitAppRouter initializes the HTTP Server.
-func InitAppRouter(log logger.AppLogger, service *sampler.Service, address string, enableTelemetry bool) *Server {
+func InitAppRouter(log logger.AppLogger, cfg *config.AppConfig, srvAuth *authorization.Service, address string, enableTelemetry bool) *Server {
 	app := &Server{
-		appAddr:    address,
-		httpEngine: fiber.New(fiber.Config{}),
-		service:    service,
-		log:        log.With(logger.WithService("http")),
+		appAddr: address,
+		httpEngine: fiber.New(fiber.Config{
+			ReadTimeout:  15 * time.Second,
+			WriteTimeout: 15 * time.Second,
+			IdleTimeout:  60 * time.Second,
+		}),
+		srvAuth: srvAuth,
+		log:     log.With(logger.WithService("http")),
+		conf:    cfg,
+	}
+	if cfg.AuthConfig.Mode == "development" {
+		app.httpEngine.Use(cors.New(cors.Config{
+			AllowOrigins:     "http://localhost:3000,http://127.0.0.1:3000",
+			AllowMethods:     "GET,POST,PUT,PATCH,DELETE,OPTIONS",
+			AllowHeaders:     "Authorization,Content-Type,Accept,Origin",
+			ExposeHeaders:    "Content-Length",
+			AllowCredentials: true,
+			MaxAge:           600,
+		}))
 	}
 	app.httpEngine.Use(recover.New())
 	if enableTelemetry {
@@ -45,6 +65,10 @@ func (s *Server) initRoutes() {
 	s.httpEngine.Get("/", func(ctx *fiber.Ctx) error {
 		return ctx.SendString("pong")
 	})
+
+	s.httpEngine.Get("/auth/login/:provider", s.authLogin)
+	s.httpEngine.Get("/auth/callback", s.authCallback)
+	s.httpEngine.All("/auth/logout", s.authLogout)
 }
 
 // Run starts the HTTP Server.
