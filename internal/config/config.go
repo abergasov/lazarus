@@ -11,6 +11,13 @@ import (
 )
 
 type AppConfig struct {
+	AppDomain       string         `yaml:"app_domain"`
+	FrontendURL     string         `yaml:"frontend_url"`
+	SSLEnable       bool           `yaml:"ssl_enable"`
+	JWTKey          string         `yaml:"jwt_key"`
+	JWTLive         int64          `yaml:"jwt_live"`
+	GoogleAppSecret string         `yaml:"google_app_secret"`
+	GoogleAppID     string         `yaml:"google_app_id"`
 	AppPort         int            `yaml:"app_port"`
 	EnableTelemetry bool           `yaml:"enable_telemetry"`
 	MigratesFolder  string         `yaml:"migrates_folder"`

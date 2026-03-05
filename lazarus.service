@@ -1,0 +1,12 @@
+[Unit]
+Description=lazarus backend
+
+[Service]
+Type=simple
+Restart=always
+RestartSec=2
+User=user
+ExecStart=/path_to_binary
+
+[Install]
+WantedBy=multi-user.target

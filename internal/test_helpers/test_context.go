@@ -2,12 +2,12 @@ package testhelpers
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"lazarus/internal/config"
 	"lazarus/internal/logger"
 	"lazarus/internal/repository"
-	samplerService "lazarus/internal/service/sampler"
+	"lazarus/internal/service/authorization"
+	"lazarus/internal/service/user"
 	"lazarus/internal/storage/bucket"
 	"lazarus/internal/storage/database"
 	"os"
@@ -15,7 +15,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/lib/pq"
 	"github.com/stretchr/testify/require"
 )
 
@@ -29,7 +28,8 @@ type TestContainer struct {
 
 	Repo *repository.Repo
 
-	ServiceSampler *samplerService.Service
+	ServiceAuth *authorization.Service
+	ServiceUser *user.Service
 }
 
 func GetClean(t *testing.T) *TestContainer {
@@ -52,7 +52,8 @@ func GetClean(t *testing.T) *TestContainer {
 	repo := repository.InitRepo(dbConnect)
 
 	// service init
-	serviceSampler := samplerService.InitService(ctx, appLog, repo)
+	srvAuth := authorization.NewService(ctx, appLog, conf, repo)
+	srvUser := user.NewService(ctx, appLog, conf, repo)
 	return &TestContainer{
 		Ctx:    ctx,
 		Cfg:    conf,
@@ -63,7 +64,8 @@ func GetClean(t *testing.T) *TestContainer {
 
 		Repo: repo,
 
-		ServiceSampler: serviceSampler,
+		ServiceAuth: srvAuth,
+		ServiceUser: srvUser,
 	}
 }
 
@@ -90,10 +92,10 @@ func getTestConfig() *config.AppConfig {
 		AppPort: 0,
 		ConfigDB: config.DBConf{
 			Address:        "localhost",
-			Port:           "5449",
+			Port:           "5559",
 			User:           "aHAjeK",
 			Pass:           "AOifjwelmc8dw",
-			DBName:         "sybill_test",
+			DBName:         "lazarus_test",
 			MaxConnections: 10,
 		},
 		S3: &bucket.S3Conf{
@@ -109,19 +111,7 @@ func getTestConfig() *config.AppConfig {
 }
 
 func isDatabaseExists(err error) bool {
-	return checkSQLError(err, "42P04")
-}
-
-func checkSQLError(err error, code string) bool {
-	if err == nil {
-		return false
-	}
-	var pqErr *pq.Error
-	ok := errors.As(err, &pqErr)
-	if !ok {
-		return false
-	}
-	return string(pqErr.Code) == code
+	return strings.Contains(err.Error(), "42P04") || strings.Contains(err.Error(), "23505")
 }
 
 func guessMigrationDir(t *testing.T) string {
