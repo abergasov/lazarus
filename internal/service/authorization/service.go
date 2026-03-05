@@ -90,7 +90,7 @@ func (s *Service) generateJWT(usr *entities.User) (string, error) {
 	at := jwt.NewWithClaims(jwt.SigningMethodHS512, entities.UserJWT{
 		UserID: usr.ID,
 		RegisteredClaims: jwt.RegisteredClaims{
-			ExpiresAt: jwt.NewNumericDate(time.Now().Add(100 * time.Hour)),
+			ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Minute * time.Duration(s.cfg.JWTLive))),
 		},
 	})
 	return at.SignedString(s.jwtKey)
