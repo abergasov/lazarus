@@ -8,6 +8,7 @@ import (
 	"lazarus/internal/logger"
 	"lazarus/internal/repository"
 	"lazarus/internal/service/authorization"
+	"lazarus/internal/service/user"
 	"lazarus/internal/storage/bucket"
 	"lazarus/internal/storage/database"
 	"os"
@@ -30,6 +31,7 @@ type TestContainer struct {
 	Repo *repository.Repo
 
 	ServiceAuth *authorization.Service
+	ServiceUser *user.Service
 }
 
 func GetClean(t *testing.T) *TestContainer {
@@ -52,7 +54,8 @@ func GetClean(t *testing.T) *TestContainer {
 	repo := repository.InitRepo(dbConnect)
 
 	// service init
-	srvAuth := authorization.NewService(ctx, conf, appLog)
+	srvAuth := authorization.NewService(ctx, appLog, conf, repo)
+	srvUser := user.NewService(ctx, appLog, conf, repo)
 	return &TestContainer{
 		Ctx:    ctx,
 		Cfg:    conf,
@@ -64,6 +67,7 @@ func GetClean(t *testing.T) *TestContainer {
 		Repo: repo,
 
 		ServiceAuth: srvAuth,
+		ServiceUser: srvUser,
 	}
 }
 
