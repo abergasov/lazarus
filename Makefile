@@ -109,7 +109,7 @@ logs: ## Show logs of service
 deploy: ## Deploys the service
 	git pull origin
 	docker build -t lazarus-ui:latest -f ui/Dockerfile_ui ui
-	docker compose up -d
+	docker compose -p ${PROJECT_NAME} up --build ui -d
 	@echo "-- stopping and disabling service"
 	make build
 	sudo systemctl restart lazarus.service
