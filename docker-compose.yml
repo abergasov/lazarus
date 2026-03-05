@@ -16,7 +16,7 @@ services:
     networks:
       - app-network
     ports:
-      - "8000:8000"
+      - "3000:3000"
     expose:
       - "3000"
     environment:
