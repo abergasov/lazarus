@@ -87,10 +87,10 @@ coverage: ## Check test coverage is enough
 
 patch_sudoers:  ## Patch sudoers file (append passwordless rules for CURRENT_USER)
 	@echo "-- patching sudoers"
-	echo "$(CURRENT_USER) ALL=(ALL) NOPASSWD: /bin/systemctl start lazarus.service" >> /etc/sudoers
-	echo "$(CURRENT_USER) ALL=(ALL) NOPASSWD: /bin/systemctl stop lazarus.service" >> /etc/sudoers
-	echo "$(CURRENT_USER) ALL=(ALL) NOPASSWD: /bin/systemctl restart lazarus.service" >> /etc/sudoers
-	echo "$(CURRENT_USER) ALL=(ALL) NOPASSWD: /bin/journalctl -u lazarus.service -f" >> /etc/sudoers
+	echo "admin ALL=(ALL) NOPASSWD: /bin/systemctl start lazarus.service" >> /etc/sudoers
+	echo "admin ALL=(ALL) NOPASSWD: /bin/systemctl stop lazarus.service" >> /etc/sudoers
+	echo "admin ALL=(ALL) NOPASSWD: /bin/systemctl restart lazarus.service" >> /etc/sudoers
+	echo "admin ALL=(ALL) NOPASSWD: /bin/journalctl -u lazarus.service -f" >> /etc/sudoers
 
 install_service: patch_sudoers ## Install service
 	git config --global --add safe.directory $(CURDIR)
@@ -108,6 +108,8 @@ logs: ## Show logs of service
 
 deploy: ## Deploys the service
 	git pull origin
+	docker build -t lazarus-ui:latest ./Dockerfile_ui
+	docker compose up -d
 	@echo "-- stopping and disabling service"
 	make build
 	sudo systemctl restart lazarus.service
