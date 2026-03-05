@@ -111,6 +111,9 @@ func getTestConfig() *config.AppConfig {
 }
 
 func isDatabaseExists(err error) bool {
+	if err == nil {
+		return false
+	}
 	return strings.Contains(err.Error(), "42P04") || strings.Contains(err.Error(), "23505")
 }
 
