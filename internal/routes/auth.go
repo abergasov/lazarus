@@ -122,5 +122,5 @@ func (s *Server) Logout(c *fiber.Ctx) error {
 	s.setSecretCookie(c, TokenCookie, "")
 	s.setSecretCookie(c, RefreshCookie, "")
 	s.setSecretCookie(c, UserIDCookie, "")
-	return c.JSON(fiber.Map{"ok": true})
+	return c.Redirect("/", fiber.StatusSeeOther) // 303
 }
