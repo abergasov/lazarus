@@ -2,6 +2,8 @@ package repository
 
 import (
 	"context"
+	"database/sql"
+	"errors"
 	"fmt"
 	"lazarus/internal/utils"
 	"strings"
@@ -21,9 +23,12 @@ var (
 	oneTimeKeyColumnsStr = strings.Join(oneTimeKeyColumns, ",")
 )
 
-func (r *Repo) GetKey(ctx context.Context, key uuid.UUID) (res string, err error) {
-	q := fmt.Sprintf("SELECT key_val FROM %s WHERE key_id = $1 AND expires > NOW()", TableOneTimeKey)
+func (r *Repo) ConsumeKey(ctx context.Context, key uuid.UUID) (res string, err error) {
+	q := fmt.Sprintf("DELETE FROM %s WHERE key_id = $1 AND expires > NOW() RETURNING key_val", TableOneTimeKey)
 	err = r.db.Client().QueryRowxContext(ctx, q, key).Scan(&res)
+	if errors.Is(err, sql.ErrNoRows) {
+		return "", errors.New("code not found or expired")
+	}
 	return res, err
 }
 

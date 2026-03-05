@@ -49,7 +49,7 @@ func (s *Service) GetTokenValidUntil() int64 {
 }
 
 func (s *Service) GetCodeChallenge(ctx context.Context, key uuid.UUID) (string, error) {
-	return s.repo.GetKey(ctx, key)
+	return s.repo.ConsumeKey(ctx, key)
 }
 
 func (s *Service) SetCodeChallenge(ctx context.Context, key string) (uuid.UUID, error) {
