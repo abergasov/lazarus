@@ -79,13 +79,13 @@ func (s *Server) getUserDataFromGoogle(code string) (*entities.GoogleUser, error
 }
 
 func (s *Server) setSecretCookie(c *fiber.Ctx, keyName, keyValue string) {
-	//liveTime := s.srvAuth.GetTokenValidUntil()
 	exp := time.Unix(s.srvAuth.GetTokenValidUntil(), 0)
-	//path := "/api/data"
-	//if keyName == RefreshCookie || keyName == UserIDCookie {
-	//	liveTime += 60 * 86400
-	//	path = "/api/auth/refresh"
-	//}
+	maxAge := 0
+
+	if keyValue == "" {
+		exp = time.Now().Add(-24 * time.Hour)
+		maxAge = -1
+	}
 
 	c.Cookie(&fiber.Cookie{
 		Name:     keyName,
@@ -96,6 +96,7 @@ func (s *Server) setSecretCookie(c *fiber.Ctx, keyName, keyValue string) {
 		Secure:   s.conf.SSLEnable, // local
 		SameSite: fiber.CookieSameSiteLaxMode,
 		Expires:  exp,
+		MaxAge:   maxAge,
 	})
 }
 
