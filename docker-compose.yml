@@ -4,7 +4,24 @@ volumes:
   data_pq_volume:
   minio_data:
 
+#Docker Networks
+networks:
+  app-network:
+    driver: bridge
+
 services:
+  ui:
+    image: lazarus-ui:latest
+    restart: unless-stopped
+    networks:
+      - app-network
+    expose:
+      - "3000"
+    environment:
+      NODE_ENV: "production"
+      HOST: "0.0.0.0"
+      PORT: "3000"
+
   app:
     build:
       context: .
@@ -70,7 +87,3 @@ services:
       mc mb -p local/lazarus || true;
       "
 
-#Docker Networks
-networks:
-  app-network:
-    driver: bridge
