@@ -63,15 +63,11 @@ dev_up: stop ## Runs local environment
 	${info Running docker-compose up...}
 	GIT_HASH=${FILE_HASH} docker compose -p ${PROJECT_NAME} up --build dbPostgres minio minio_init
 
-build: ## Builds binary
-	@echo "-- building binary"
-	go build -o ./bin/binary ./cmd
-
 build_in_docker: ## Builds binary in docker
 	@echo "-- building docker image"
 	CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o ./bin/binary ./cmd
 
-logs: ## Show logs
+logs_docker: ## Show logs
 	docker compose -p ${PROJECT_NAME} logs -f
 
 run: ## Runs binary local with environment in docker
@@ -89,5 +85,36 @@ coverage: ## Check test coverage is enough
 		exit 1; \
 	fi
 
-.PHONY: help install-lint test gogen prepare_ci lint stop dev_up dev_up_ci build run migrate_new vulcheck coverage build_in_docker logs
+patch_sudoers:  ## Patch sudoers file (append passwordless rules for CURRENT_USER)
+	@echo "-- patching sudoers"
+	echo "$(CURRENT_USER) ALL=(ALL) NOPASSWD: /bin/systemctl start lazarus.service" >> /etc/sudoers
+	echo "$(CURRENT_USER) ALL=(ALL) NOPASSWD: /bin/systemctl stop lazarus.service" >> /etc/sudoers
+	echo "$(CURRENT_USER) ALL=(ALL) NOPASSWD: /bin/systemctl restart lazarus.service" >> /etc/sudoers
+	echo "$(CURRENT_USER) ALL=(ALL) NOPASSWD: /bin/journalctl -u lazarus.service -f" >> /etc/sudoers
+
+install_service: patch_sudoers ## Install service
+	git config --global --add safe.directory $(CURDIR)
+	@echo "-- creating service"
+	sudo mkdir -p /etc/systemd/system
+	cp lazarus.service lazarus.service.local
+	@sed -i 's|ExecStart=/path_to_binary|ExecStart=$(shell pwd)/bin/lazarus --config=$(shell pwd)/configs/app_conf.yml|' lazarus.service.local
+	@sed -i 's|^User=.*|User=$(shell whoami)|' lazarus.service.local
+	sudo cp lazarus.service.local /etc/systemd/system/lazarus.service
+	@echo "-- enable lazarus service"
+	sudo service lazarus start && sudo systemctl enable lazarus
+
+logs: ## Show logs of service
+	sudo journalctl -u lazarus.service -f | awk -F']: ' '{print $$2}'
+
+deploy: ## Deploys the service
+	git pull origin
+	@echo "-- stopping and disabling service"
+	make build
+	sudo systemctl restart lazarus.service
+
+build: ## Builds binary
+	@echo "-- building binary"
+	go build -o ./bin/lazarus ./cmd
+
+.PHONY: help install-lint test gogen prepare_ci lint stop dev_up dev_up_ci build run migrate_new vulcheck coverage build_in_docker logs_docker deploy logs install_service patch_sudoers
 .DEFAULT_GOAL := help
