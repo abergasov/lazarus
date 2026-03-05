@@ -12,6 +12,7 @@ import (
 
 type AppConfig struct {
 	AppDomain       string         `yaml:"app_domain"`
+	FrontendURL     string         `yaml:"frontend_url"`
 	SSLEnable       bool           `yaml:"ssl_enable"`
 	JWTKey          string         `yaml:"jwt_key"`
 	JWTLive         int64          `yaml:"jwt_live"`

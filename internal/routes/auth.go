@@ -10,6 +10,8 @@ import (
 	"lazarus/internal/entities"
 	"lazarus/internal/utils"
 	"net/http"
+	"net/url"
+	"strings"
 
 	"time"
 
@@ -60,7 +62,9 @@ func (s *Server) oauthGoogleCallback(c *fiber.Ctx) error {
 		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{"error": "error set code challenge"})
 	}
 	s.setSecretCookie(c, TokenCookie, jwt)
-	return c.Redirect("http://localhost:3000/?code="+code.String(), http.StatusTemporaryRedirect)
+	frontendURL := strings.TrimSuffix(s.conf.FrontendURL, "/")
+	redirectURL := frontendURL + "/?" + url.Values{"code": {code.String()}}.Encode()
+	return c.Redirect(redirectURL, http.StatusTemporaryRedirect)
 }
 
 func (s *Server) getUserDataFromGoogle(code string) (*entities.GoogleUser, error) {
