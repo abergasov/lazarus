@@ -2,7 +2,6 @@ package testhelpers
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"lazarus/internal/config"
 	"lazarus/internal/logger"
@@ -16,7 +15,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/lib/pq"
 	"github.com/stretchr/testify/require"
 )
 
@@ -113,19 +111,7 @@ func getTestConfig() *config.AppConfig {
 }
 
 func isDatabaseExists(err error) bool {
-	return checkSQLError(err, "42P04")
-}
-
-func checkSQLError(err error, code string) bool {
-	if err == nil {
-		return false
-	}
-	var pqErr *pq.Error
-	ok := errors.As(err, &pqErr)
-	if !ok {
-		return false
-	}
-	return string(pqErr.Code) == code
+	return strings.Contains(err.Error(), "42P04") || strings.Contains(err.Error(), "23505")
 }
 
 func guessMigrationDir(t *testing.T) string {
