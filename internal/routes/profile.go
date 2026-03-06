@@ -1,6 +1,7 @@
 package routes
 
 import (
+	"context"
 	"encoding/json"
 	"time"
 
@@ -63,5 +64,11 @@ func (s *Server) handleUpdateDemographics(c *fiber.Ctx, userID uuid.UUID) error 
 	if err := repo.Save(c.Context(), model); err != nil {
 		return c.Status(500).JSON(fiber.Map{"error": err.Error()})
 	}
+
+	// Proactive: check if risk profile changed
+	if s.insightGenerator != nil {
+		go s.insightGenerator.ProcessDataChange(context.Background(), userID, "profile_updated", "")
+	}
+
 	return c.JSON(model)
 }

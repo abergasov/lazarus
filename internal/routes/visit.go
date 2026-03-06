@@ -1,6 +1,7 @@
 package routes
 
 import (
+	"context"
 	"encoding/json"
 
 	"github.com/gofiber/fiber/v2"
@@ -63,6 +64,12 @@ func (s *Server) handleUpdateVisitPhase(c *fiber.Ctx, userID uuid.UUID) error {
 	if err := repo.UpdatePhase(c.Context(), id, body.Status); err != nil {
 		return c.Status(500).JSON(fiber.Map{"error": err.Error()})
 	}
+
+	// Proactive: generate insight card for phase transition
+	if s.insightGenerator != nil {
+		go s.insightGenerator.ProcessDataChange(context.Background(), userID, "visit_phase_changed", id)
+	}
+
 	return c.JSON(fiber.Map{"status": body.Status})
 }
 

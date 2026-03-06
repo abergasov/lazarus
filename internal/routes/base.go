@@ -37,10 +37,11 @@ type Server struct {
 	srvUser *user.Service
 
 	// MedHelp services
-	db           *sqlx.DB
-	orchestrator *medagent.Orchestrator
-	docSvc       *docsvc.Service
-	labSvc       *labsvc.Service
+	db               *sqlx.DB
+	orchestrator     *medagent.Orchestrator
+	docSvc           *docsvc.Service
+	labSvc           *labsvc.Service
+	insightGenerator *medagent.InsightGenerator
 }
 
 var googleScopes = []string{
@@ -94,6 +95,9 @@ func InitAppRouter(
 		app.orchestrator = medHelp[0].Orchestrator
 		app.docSvc = medHelp[0].DocSvc
 		app.labSvc = medHelp[0].LabSvc
+		if app.db != nil {
+			app.insightGenerator = medagent.NewInsightGenerator(app.db)
+		}
 	}
 
 	app.httpEngine.Use(recover.New())

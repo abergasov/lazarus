@@ -31,6 +31,11 @@ func (s *Server) handleDocumentUpload(c *fiber.Ctx, userID uuid.UUID) error {
 	// Trigger async parse
 	go s.docSvc.Parse(context.Background(), doc.ID)
 
+	// Proactive: generate insight card for document upload
+	if s.insightGenerator != nil {
+		go s.insightGenerator.ProcessDataChange(context.Background(), userID, "document_uploaded", doc.ID.String())
+	}
+
 	return c.Status(202).JSON(doc)
 }
 
