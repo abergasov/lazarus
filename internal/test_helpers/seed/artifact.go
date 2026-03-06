@@ -2,6 +2,8 @@ package seed
 
 import (
 	"context"
+	"database/sql"
+	"encoding/json"
 	"lazarus/internal/entities"
 	testhelpers "lazarus/internal/test_helpers"
 	"lazarus/internal/utils"
@@ -27,10 +29,10 @@ func NewArtifactBuilder(userID uuid.UUID) *ArtifactBuilder {
 			OriginalName: uuid.NewString()[:8] + ".pdf",
 			ByteSize:     4832,
 			SHA256Hex:    utils.HashSHA256([]byte(uuid.NewString())),
-			Storage:      "",
-			Bucket:       "",
-			ObjectKey:    "",
-			MetaJSON:     nil,
+			Storage:      entities.ArtifactStorageS3,
+			Bucket:       uuid.NewString()[:8],
+			ObjectKey:    uuid.NewString()[:8],
+			MetaJSON:     sql.Null[json.RawMessage]{},
 		},
 	}
 }
@@ -52,9 +54,9 @@ func (b *ArtifactBuilder) Build() *entities.Artifact {
 func (b *ArtifactBuilder) PopulateTests(t *testing.T, cnt *testhelpers.TestContainer) *entities.Artifact {
 	ctx, cancel := context.WithTimeout(cnt.Ctx, 10*time.Second)
 	defer cancel()
-	artefactID, err := cnt.Repo.CreateArtifact(ctx, b.Build())
+	artifactID, err := cnt.Repo.CreateArtifact(ctx, b.Build())
 	require.NoError(t, err)
-	artifact, err := cnt.Repo.GetArtefactByID(ctx, artefactID)
+	artifact, err := cnt.Repo.GetArtifactByID(ctx, artifactID)
 	require.NoError(t, err)
 	require.NotNil(t, artifact)
 	return artifact

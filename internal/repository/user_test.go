@@ -1,6 +1,7 @@
 package repository_test
 
 import (
+	"lazarus/internal/entities"
 	testhelpers "lazarus/internal/test_helpers"
 	"lazarus/internal/test_helpers/seed"
 	"testing"
@@ -26,22 +27,24 @@ func TestUserCRUD(t *testing.T) {
 		// then
 		usr, err := container.Repo.GetUserByMail(container.Ctx, googleUser.Email)
 		require.NoError(t, err)
-		require.NotNil(t, usr)
-		require.Equal(t, googleUser.Email, usr.Email)
-		require.Equal(t, googleUser.Name, usr.UserName)
-		require.NotZero(t, usr.ID)
-		require.NotZero(t, usr.CreatedAt)
-		require.NotZero(t, usr.UpdatedAt)
+		compareUsers(t, googleUser, usr)
 
 		t.Run("should get user by id", func(t *testing.T) {
+			// when, then
 			res, err := container.Repo.GetUserByID(container.Ctx, usr.ID)
 			require.NoError(t, err)
-			require.NotNil(t, res)
-			require.Equal(t, usr.Email, res.Email)
-			require.Equal(t, usr.UserName, res.UserName)
-			require.NotZero(t, res.ID)
-			require.NotZero(t, res.CreatedAt)
-			require.NotZero(t, res.UpdatedAt)
+			compareUsers(t, googleUser, res)
 		})
 	})
+}
+
+func compareUsers(t *testing.T, srcUser *entities.GoogleUser, targetUser *entities.User) {
+	t.Helper()
+
+	require.NotNil(t, targetUser)
+	require.Equal(t, srcUser.Email, targetUser.Email)
+	require.Equal(t, srcUser.Name, targetUser.UserName)
+	require.NotZero(t, targetUser.ID)
+	require.NotZero(t, targetUser.CreatedAt)
+	require.NotZero(t, targetUser.UpdatedAt)
 }

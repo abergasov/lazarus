@@ -30,6 +30,7 @@ var (
 		"object_key",
 		"created_at",
 		"updated_at",
+		"meta_json",
 	}
 	artifactColumnsStr = strings.Join(artifactColumns, ",")
 )
@@ -51,6 +52,7 @@ func (r *Repo) CreateArtifact(ctx context.Context, a *entities.Artifact) (uuid.U
 		"object_key":         a.ObjectKey,
 		"created_at":         time.Now(),
 		"updated_at":         time.Now(),
+		"meta_json":          a.MetaJSON,
 	})
 	_, err := r.db.Client().ExecContext(ctx, q, p...)
 	return result, err
@@ -60,7 +62,7 @@ func (r *Repo) UpdateArtifactStatus(ctx context.Context, id uuid.UUID, st entiti
 	if !st.Valid() {
 		return fmt.Errorf("invalid artifact status: %q", st)
 	}
-	q := fmt.Sprintf("UPDATE %s SET status = $1 WHERE a_id = $2", TableArtifacts)
+	q := fmt.Sprintf("UPDATE %s SET status = $1, updated_at = NOW() WHERE a_id = $2", TableArtifacts)
 	_, err := r.db.Client().ExecContext(ctx, q, st, id)
 	return err
 }
@@ -70,7 +72,7 @@ func (r *Repo) GetAllArtifactsByOwner(ctx context.Context, ownerID uuid.UUID) ([
 	return database.QueryRowsToStruct[entities.Artifact](ctx, r.db.Client(), q, ownerID)
 }
 
-func (r *Repo) GetArtefactByID(ctx context.Context, artefactID uuid.UUID) (*entities.Artifact, error) {
+func (r *Repo) GetArtifactByID(ctx context.Context, artifactID uuid.UUID) (*entities.Artifact, error) {
 	q := fmt.Sprintf("SELECT %s FROM %s WHERE a_id = $1", artifactColumnsStr, TableArtifacts)
-	return database.QueryRowToStruct[entities.Artifact](ctx, r.db.Client(), q, artefactID)
+	return database.QueryRowToStruct[entities.Artifact](ctx, r.db.Client(), q, artifactID)
 }

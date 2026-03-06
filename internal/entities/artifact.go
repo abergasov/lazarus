@@ -1,6 +1,7 @@
 package entities
 
 import (
+	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -84,7 +85,7 @@ type Artifact struct {
 	UpdatedAt    time.Time       `db:"updated_at" json:"updated_at"`
 
 	// Optional: external metadata (client filename, source system, etc.)
-	MetaJSON json.RawMessage `db:"meta_json" json:"meta_json"`
+	MetaJSON sql.Null[json.RawMessage] `db:"meta_json" json:"meta_json"`
 }
 
 func (a *Artifact) Validate() error {
@@ -111,9 +112,6 @@ func (a *Artifact) Validate() error {
 	}
 	if a.ObjectKey == "" || len(a.ObjectKey) > 1024 {
 		return errors.New("artifact.object_key invalid")
-	}
-	if len(a.MetaJSON) > 0 && !json.Valid(a.MetaJSON) {
-		return errors.New("artifact.meta_json invalid json")
 	}
 	return nil
 }

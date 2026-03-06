@@ -6,15 +6,11 @@ create table one_time_key
     constraint one_time_key_pk primary key (key_id)
 );
 
-create type oauth_provider as enum (
-    'google',
-    'facebook'
-);
 
 create table users
 (
     u_id         uuid constraint users_pk primary key,
-    provider     oauth_provider,
+    provider     varchar(20) not null,
     created_at   timestamp,
     updated_at   timestamp,
     email        varchar,

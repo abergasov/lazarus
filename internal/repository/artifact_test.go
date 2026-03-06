@@ -21,7 +21,7 @@ func TestArtifactCrud(t *testing.T) {
 	require.NotNil(t, artifact)
 
 	// then
-	artifactFromDB, err := container.Repo.GetArtefactByID(container.Ctx, artifactID)
+	artifactFromDB, err := container.Repo.GetArtifactByID(container.Ctx, artifactID)
 	require.NoError(t, err)
 	require.Equal(t, artifact.OriginalName, artifactFromDB.OriginalName)
 	require.Equal(t, artifact.SHA256Hex, artifactFromDB.SHA256Hex)
@@ -35,7 +35,7 @@ func TestArtifactCrud(t *testing.T) {
 		require.NoError(t, container.Repo.UpdateArtifactStatus(container.Ctx, artifactID, entities.ArtifactStatusClean))
 
 		// then
-		updatedArtifact, err := container.Repo.GetArtefactByID(container.Ctx, artifactID)
+		updatedArtifact, err := container.Repo.GetArtifactByID(container.Ctx, artifactID)
 		require.NoError(t, err)
 		require.Equal(t, entities.ArtifactStatusClean, updatedArtifact.Status)
 		t.Run("should trigger error for wrong status", func(t *testing.T) {
@@ -43,7 +43,7 @@ func TestArtifactCrud(t *testing.T) {
 			require.Error(t, container.Repo.UpdateArtifactStatus(container.Ctx, artifactID, "invalid_status"))
 
 			// then
-			updatedArtifact, err = container.Repo.GetArtefactByID(container.Ctx, artifactID)
+			updatedArtifact, err = container.Repo.GetArtifactByID(container.Ctx, artifactID)
 			require.NoError(t, err)
 			require.Equal(t, entities.ArtifactStatusClean, updatedArtifact.Status)
 		})
