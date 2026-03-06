@@ -141,8 +141,25 @@ func (s *Server) initRoutes() {
 
 	api.Get("/profile", s.wrapAuthUUID(s.handleGetProfile))
 	api.Put("/profile/demographics", s.wrapAuthUUID(s.handleUpdateDemographics))
+	api.Put("/profile/conditions", s.wrapAuthUUID(s.handleUpdateConditions))
 
 	api.Post("/agent/stream", s.wrapAuth(s.handleAgentStream))
+
+	// Home (contextual surface)
+	api.Get("/home", s.wrapAuthUUID(s.handleHome))
+
+	// Insights
+	api.Get("/insights", s.wrapAuthUUID(s.handleListInsights))
+	api.Put("/insights/:id/dismiss", s.wrapAuthUUID(s.handleDismissInsight))
+
+	// Conversations (scoped)
+	api.Post("/conversations", s.wrapAuthUUID(s.handleCreateConversation))
+	api.Get("/conversations/:id", s.wrapAuthUUID(s.handleGetConversation))
+	api.Post("/conversations/:id/messages", s.wrapAuthUUID(s.handleConversationMessage))
+
+	// Onboarding
+	api.Post("/onboarding/upload", s.wrapAuthUUID(s.handleOnboardingUpload))
+	api.Post("/onboarding/confirm", s.wrapAuthUUID(s.handleOnboardingConfirm))
 }
 
 // Run starts the HTTP Server.

@@ -10,13 +10,24 @@ networks:
     driver: bridge
 
 services:
+  nginx:
+    image: nginx:alpine
+    restart: unless-stopped
+    ports:
+      - "3010:80"
+    volumes:
+      - ./nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      - ui
+      - app
+    networks:
+      - app-network
+
   ui:
     image: lazarus-ui:latest
     restart: unless-stopped
     networks:
       - app-network
-    ports:
-      - "3010:3000"
     expose:
       - "3000"
     environment:
@@ -31,8 +42,8 @@ services:
       args:
         CONF_PATH: configs/app_conf_docker.yml
     restart: always
-    ports:
-      - "8010:8000"
+    expose:
+      - "8000"
     depends_on:
       dbPostgres:
         condition: service_healthy

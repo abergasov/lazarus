@@ -19,8 +19,9 @@ type PatientModel struct {
 	CommunicationStyle string          `json:"communication_style"`
 	MedAdherence       string          `json:"medication_adherence"`
 
-	VisitCount      int       `json:"visit_count"`
-	LastSynthesized time.Time `json:"last_synthesized"`
+	VisitCount           int       `json:"visit_count"`
+	LastSynthesized      time.Time `json:"last_synthesized"`
+	OnboardingCompleted  bool      `json:"onboarding_completed"`
 }
 
 type Demographics struct {

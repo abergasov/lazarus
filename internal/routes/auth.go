@@ -36,7 +36,15 @@ func (s *Server) oauthGoogleLogin(c *fiber.Ctx) error {
 		Value:   state,
 		Expires: time.Now().Add(365 * 24 * time.Hour),
 	})
-	return c.Redirect(s.googleOAuth.AuthCodeURL(state), http.StatusTemporaryRedirect)
+	// Build redirect URL dynamically from the incoming request host so the app
+	// works from localhost, LAN IP, or any other hostname without config changes.
+	scheme := "http"
+	if c.Protocol() == "https" {
+		scheme = "https"
+	}
+	cfg := *s.googleOAuth // shallow copy so we don't mutate the shared config
+	cfg.RedirectURL = scheme + "://" + c.Get("Host") + "/api/auth/google/callback"
+	return c.Redirect(cfg.AuthCodeURL(state), http.StatusTemporaryRedirect)
 }
 
 func (s *Server) oauthGoogleCallback(c *fiber.Ctx) error {
@@ -111,11 +119,13 @@ func (s *Server) exchangeCode(c *fiber.Ctx) error {
 	if err := json.Unmarshal(c.Body(), &u); err != nil {
 		return c.Status(http.StatusBadRequest).JSON(fiber.Map{})
 	}
-	code, err := s.srvAuth.GetCodeChallenge(c.UserContext(), u.Code)
+	jwt, err := s.srvAuth.GetCodeChallenge(c.UserContext(), u.Code)
 	if err != nil {
 		return c.Status(http.StatusNotFound).JSON(fiber.Map{})
 	}
-	return c.JSON(map[string]interface{}{"ok": true, "code": code})
+	// Set the cookie here too — belt-and-suspenders in case the redirect cookie was lost
+	s.setSecretCookie(c, TokenCookie, jwt)
+	return c.JSON(map[string]interface{}{"ok": true})
 }
 
 func (s *Server) Logout(c *fiber.Ctx) error {

@@ -6,7 +6,7 @@
     color?: string;
   } = $props();
 
-  const path = $derived(() => {
+  const path = $derived.by(() => {
     if (!points || points.length < 2) return '';
     const min = Math.min(...points);
     const max = Math.max(...points);
@@ -15,11 +15,11 @@
     return points.map((v, i) => {
       const x = i * step;
       const y = height - ((v - min) / range) * (height - 4) - 2;
-      return `${i === 0 ? 'M' : 'L'}${x},${y}`;
+      return `${i === 0 ? 'M' : 'L'}${x.toFixed(1)},${y.toFixed(1)}`;
     }).join(' ');
   });
 </script>
 
 <svg {width} {height} viewBox="0 0 {width} {height}" fill="none">
-  <path d={path()} stroke={color} stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+  <path d={path} stroke={color} stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
 </svg>
