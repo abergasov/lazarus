@@ -16,7 +16,7 @@ services:
     networks:
       - app-network
     ports:
-      - "3000:3000"
+      - "3010:3000"
     expose:
       - "3000"
     environment:
@@ -32,7 +32,7 @@ services:
         CONF_PATH: configs/app_conf_docker.yml
     restart: always
     ports:
-      - "8000:8000"
+      - "8010:8000"
     depends_on:
       dbPostgres:
         condition: service_healthy
@@ -45,7 +45,7 @@ services:
     env_file:
       - configs/common.env
     ports:
-      - "5559:5432"
+      - "5560:5432"
     networks:
       - app-network
     volumes:
@@ -63,8 +63,8 @@ services:
       MINIO_ROOT_USER: minioadmin
       MINIO_ROOT_PASSWORD: minioadmin
     ports:
-      - "9000:9000" # S3 API
-      - "9001:9001" # Console UI
+      - "9010:9000" # S3 API
+      - "9011:9001" # Console UI
     volumes:
       - minio_data:/data
     networks:

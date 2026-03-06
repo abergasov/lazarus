@@ -1,10 +1,11 @@
 app_port: 8000
-frontend_url: http://localhost:3000
+app_domain: localhost:8010
+frontend_url: http://localhost:3010
 migrates_folder: migrations
 enable_telemetry: true
 conf_db:
   address: dbPostgres
-  port: 5559
+  port: 5432
   user: aHAjeK
   pass: AOifjwelmc8dw
   db_name: lazarus
@@ -12,21 +13,21 @@ conf_db:
 auth:
   supabase_url: https://abc.supabase.co
   supabase_anon: abcdefghijklmnopqrstuvwxyz0123456789
-  callback_url: http://localhost:8080/auth/callback
-  frontend_url: http://localhost:3000
+  callback_url: http://localhost:8010/auth/callback
+  frontend_url: http://localhost:3010
   cookie_domain:
   # cookie_secure: 1 for production, 0 for development
   cookie_secure: 0
   cookie_same_site: lax
   mode: development
 s3:
-  region: hel1
-  endpoint: https://abc.hel1.your-objectstorage.com
-  bucket: abc
-  access_key_id: ACCESS_KEY
-  secret_access_key: SECRET_KEY
+  region: us-east-1
+  endpoint: http://minio:9000
+  bucket: lazarus
+  access_key_id: minioadmin
+  secret_access_key: minioadmin
   prefix: dev/
-  use_path_style: false
+  use_path_style: true
 llm:
   providers:
     - id: anthropic
