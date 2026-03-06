@@ -8,6 +8,8 @@ type Repo struct {
 
 var AllTables = []string{
 	TableOneTimeKey,
+	TableArtifacts,
+	TableUser,
 }
 
 func InitRepo(db database.DBConnector) *Repo {

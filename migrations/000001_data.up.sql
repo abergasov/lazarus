@@ -13,7 +13,7 @@ create type oauth_provider as enum (
 
 create table users
 (
-    u_id         serial constraint users_pk primary key,
+    u_id         uuid constraint users_pk primary key,
     provider     oauth_provider,
     created_at   timestamp,
     updated_at   timestamp,

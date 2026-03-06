@@ -22,3 +22,22 @@ func QueryRowToStruct[T any](ctx context.Context, conn sqlscan.Querier, query st
 	}
 	return &t, nil
 }
+
+func QueryRowsToStruct[T any](ctx context.Context, conn sqlscan.Querier, query string, args ...any) ([]*T, error) {
+	rows, err := conn.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, fmt.Errorf("failed to execute query: %w", err)
+	}
+
+	defer rows.Close()
+	res := make([]*T, 0, 100)
+	for rows.Next() {
+		var t T
+		if err = sqlscan.NewRowScanner(rows).Scan(&t); err != nil {
+			return nil, fmt.Errorf("failed to scan row: %w", err)
+		}
+		res = append(res, &t)
+	}
+
+	return res, nil
+}
