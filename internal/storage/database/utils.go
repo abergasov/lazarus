@@ -29,7 +29,7 @@ func QueryRowsToStruct[T any](ctx context.Context, conn sqlscan.Querier, query s
 		return nil, fmt.Errorf("failed to execute query: %w", err)
 	}
 
-	defer rows.Close()
+	defer rows.Close() //nolint:errcheck // it's ok
 	res := make([]*T, 0, 100)
 	for rows.Next() {
 		t := new(T)
