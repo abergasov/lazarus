@@ -23,6 +23,33 @@ type AppConfig struct {
 	MigratesFolder  string         `yaml:"migrates_folder"`
 	ConfigDB        DBConf         `yaml:"conf_db"`
 	S3              *bucket.S3Conf `yaml:"s3"`
+	LLM             LLMConfig      `yaml:"llm"`
+}
+
+type LLMConfig struct {
+	Providers []ProviderConfig `yaml:"providers"`
+	Roles     RoleConfig       `yaml:"roles"`
+}
+
+type ProviderConfig struct {
+	ID           string `yaml:"id"`
+	Type         string `yaml:"type"`    // "anthropic" | "openai" | "openai_compat" | "openrouter"
+	APIKey       string `yaml:"api_key"`
+	BaseURL      string `yaml:"base_url,omitempty"`
+	DefaultModel string `yaml:"default_model"`
+}
+
+type RoleConfig struct {
+	Prep   RoleModel `yaml:"prep"`
+	During RoleModel `yaml:"during"`
+	After  RoleModel `yaml:"after"`
+	Vision RoleModel `yaml:"vision"`
+	Embed  RoleModel `yaml:"embed"`
+}
+
+type RoleModel struct {
+	ProviderID string `yaml:"provider"`
+	Model      string `yaml:"model"`
 }
 
 type DBConf struct {
