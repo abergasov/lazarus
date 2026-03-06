@@ -68,8 +68,8 @@ export type Medication = {
 export type PatientModel = {
   demographics: Demographics;
   risk_scores?: { ascvd_10yr?: RiskScore };
-  conditions?: { icd10: string; description: string; status: string }[];
-  concerns?: { description: string; severity: string; noted_at: string }[];
+  active_conditions?: { icd10_code: string; name: string; status: string }[];
+  key_concerns?: { description: string; severity: string }[];
 };
 
 export type Demographics = {
@@ -101,3 +101,32 @@ export type AgentEvent =
   | { type: 'tool_result'; id: string; summary: string }
   | { type: 'done'; session_id: string }
   | { type: 'error'; message: string };
+
+export type InsightCard = {
+  id: string;
+  type: string;
+  title: string;
+  body: string;
+  severity: 'info' | 'warning' | 'urgent';
+  context_type: string;
+  context_id: string;
+  actions: { label: string; endpoint: string; method: string; body?: string }[];
+  dismissed_at: string | null;
+  created_at: string;
+};
+
+export type Conversation = {
+  id: string;
+  context_type: string;
+  context_id: string;
+  messages: { role: string; content: string; timestamp: string }[];
+  created_at: string;
+  updated_at: string;
+};
+
+export type HomeData = {
+  primary_card: InsightCard | null;
+  visits: Visit[];
+  insights: InsightCard[];
+  onboarding_completed: boolean;
+};
