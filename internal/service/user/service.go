@@ -6,6 +6,8 @@ import (
 	"lazarus/internal/entities"
 	"lazarus/internal/logger"
 	"lazarus/internal/repository"
+
+	"github.com/google/uuid"
 )
 
 type Service struct {
@@ -25,6 +27,6 @@ func NewService(ctx context.Context, log logger.AppLogger, cfg *config.AppConfig
 	}
 }
 
-func (r *Service) GetUserByID(ctx context.Context, id int64) (*entities.User, error) {
+func (r *Service) GetUserByID(ctx context.Context, id uuid.UUID) (*entities.User, error) {
 	return r.repo.GetUserByID(ctx, id)
 }

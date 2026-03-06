@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/golang-jwt/jwt/v4"
+	"github.com/google/uuid"
 )
 
 type GoogleUser struct {
@@ -17,7 +18,7 @@ type GoogleUser struct {
 }
 
 type User struct {
-	ID        int64     `db:"u_id" json:"id"`
+	ID        uuid.UUID `db:"u_id" json:"id"`
 	Email     string    `db:"email" json:"email"`
 	UserName  string    `db:"user_name" json:"user_name"`
 	CreatedAt time.Time `db:"created_at" json:"created_at"`
@@ -25,10 +26,10 @@ type User struct {
 }
 
 type UserJWT struct {
-	UserID int64 `json:"id"`
+	UserID uuid.UUID `json:"id"`
 	jwt.RegisteredClaims
 }
 
-func (u *UserJWT) GetUserID() int64 {
+func (u *UserJWT) GetUserID() uuid.UUID {
 	return u.UserID
 }

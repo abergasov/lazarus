@@ -14,6 +14,7 @@ import (
 	"github.com/gofiber/fiber/v2/middleware/adaptor"
 	"github.com/gofiber/fiber/v2/middleware/recover"
 	"github.com/golang-jwt/jwt/v4"
+	"github.com/google/uuid"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/collectors"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -144,7 +145,7 @@ func (s *Server) jwtMiddleware() fiber.Handler {
 	}
 }
 
-func (s *Server) wrapAuth(route func(c *fiber.Ctx, userID int64) error) fiber.Handler {
+func (s *Server) wrapAuth(route func(c *fiber.Ctx, userID uuid.UUID) error) fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		token, ok := c.Locals("user").(*jwt.Token)
 		if !ok {
