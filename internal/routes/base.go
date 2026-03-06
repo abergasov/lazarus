@@ -6,6 +6,8 @@ import (
 	"lazarus/internal/entities"
 	"lazarus/internal/logger"
 	"lazarus/internal/service/authorization"
+	docsvc "lazarus/internal/service/document"
+	labsvc "lazarus/internal/service/lab"
 	"lazarus/internal/service/user"
 	"strings"
 	"time"
@@ -14,11 +16,13 @@ import (
 	"github.com/gofiber/fiber/v2/middleware/adaptor"
 	"github.com/gofiber/fiber/v2/middleware/recover"
 	"github.com/golang-jwt/jwt/v4"
+	"github.com/jmoiron/sqlx"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/collectors"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
+	medagent "lazarus/internal/agent"
 )
 
 type Server struct {
@@ -31,11 +35,25 @@ type Server struct {
 
 	srvAuth *authorization.Service
 	srvUser *user.Service
+
+	// MedHelp services
+	db           *sqlx.DB
+	orchestrator *medagent.Orchestrator
+	docSvc       *docsvc.Service
+	labSvc       *labsvc.Service
 }
 
 var googleScopes = []string{
 	"https://www.googleapis.com/auth/userinfo.profile",
 	"https://www.googleapis.com/auth/userinfo.email",
+}
+
+// MedHelpDeps holds the new medhelp services for injection
+type MedHelpDeps struct {
+	DB           *sqlx.DB
+	Orchestrator *medagent.Orchestrator
+	DocSvc       *docsvc.Service
+	LabSvc       *labsvc.Service
 }
 
 // InitAppRouter initializes the HTTP Server.
@@ -46,6 +64,7 @@ func InitAppRouter(
 	srvUser *user.Service,
 	address string,
 	enableTelemetry bool,
+	medHelp ...*MedHelpDeps,
 ) *Server {
 	appPrefix := "http://"
 	if cfg.SSLEnable {
@@ -69,6 +88,12 @@ func InitAppRouter(
 			Scopes:       googleScopes,
 			Endpoint:     google.Endpoint,
 		},
+	}
+	if len(medHelp) > 0 && medHelp[0] != nil {
+		app.db = medHelp[0].DB
+		app.orchestrator = medHelp[0].Orchestrator
+		app.docSvc = medHelp[0].DocSvc
+		app.labSvc = medHelp[0].LabSvc
 	}
 
 	app.httpEngine.Use(recover.New())
@@ -97,6 +122,27 @@ func (s *Server) initRoutes() {
 
 	api := s.httpEngine.Group("/api/v1", s.jwtMiddleware())
 	api.Get("/user/me", s.wrapAuth(s.handleUser))
+
+	// MedHelp routes
+	api.Post("/visits", s.wrapAuthUUID(s.handleCreateVisit))
+	api.Get("/visits", s.wrapAuthUUID(s.handleListVisits))
+	api.Get("/visits/:id", s.wrapAuthUUID(s.handleGetVisit))
+	api.Put("/visits/:id/phase", s.wrapAuthUUID(s.handleUpdateVisitPhase))
+
+	api.Post("/documents", s.wrapAuthUUID(s.handleDocumentUpload))
+	api.Get("/documents", s.wrapAuthUUID(s.handleListDocuments))
+
+	api.Get("/labs", s.wrapAuthUUID(s.handleListLabs))
+	api.Get("/labs/:loinc/trend", s.wrapAuthUUID(s.handleLabTrend))
+
+	api.Get("/medications", s.wrapAuthUUID(s.handleListMedications))
+	api.Post("/medications", s.wrapAuthUUID(s.handleAddMedication))
+	api.Delete("/medications/:id", s.wrapAuthUUID(s.handleDeleteMedication))
+
+	api.Get("/profile", s.wrapAuthUUID(s.handleGetProfile))
+	api.Put("/profile/demographics", s.wrapAuthUUID(s.handleUpdateDemographics))
+
+	api.Post("/agent/stream", s.wrapAuth(s.handleAgentStream))
 }
 
 // Run starts the HTTP Server.

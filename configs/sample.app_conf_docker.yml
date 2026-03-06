@@ -27,3 +27,19 @@ s3:
   secret_access_key: SECRET_KEY
   prefix: dev/
   use_path_style: false
+llm:
+  providers:
+    - id: anthropic
+      type: anthropic
+      api_key: ${ANTHROPIC_API_KEY}
+      default_model: claude-sonnet-4-6
+    - id: openai
+      type: openai
+      api_key: ${OPENAI_API_KEY}
+      default_model: gpt-4o
+  roles:
+    prep:   { provider: anthropic, model: claude-sonnet-4-6 }
+    during: { provider: anthropic, model: claude-haiku-4-5-20251001 }
+    after:  { provider: anthropic, model: claude-sonnet-4-6 }
+    vision: { provider: anthropic, model: claude-sonnet-4-6 }
+    embed:  { provider: openai,    model: text-embedding-3-small }

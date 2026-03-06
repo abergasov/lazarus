@@ -114,6 +114,10 @@ deploy: ## Deploys the service
 	make build
 	sudo systemctl restart lazarus.service
 
+seed-kb: ## Seed medical knowledge base (run once after deploy)
+	LOINC_CSV=$$LOINC_CSV RXNORM_DIR=$$RXNORM_DIR OPENFDA_FILE=$$OPENFDA_FILE ICD10_FILE=$$ICD10_FILE \
+	go run scripts/seed_kb.go --config configs/app_conf.yml
+
 build: ## Builds binary
 	@echo "-- building binary"
 	go build -o ./bin/lazarus ./cmd
