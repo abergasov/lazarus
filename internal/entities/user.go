@@ -23,6 +23,12 @@ type User struct {
 	UserName  string    `db:"user_name" json:"user_name"`
 	CreatedAt time.Time `db:"created_at" json:"created_at"`
 	UpdatedAt time.Time `db:"updated_at" json:"updated_at"`
+
+	DateOfBirth time.Time `db:"date_of_birth" json:"date_of_birth"`
+	Sex         string    `db:"sex" json:"sex"` // "M" | "F"
+	HeightCM    float64   `db:"height_cm" json:"height_cm"`
+	WeightKG    float64   `db:"weight_kg" json:"weight_kg"`
+	Smoker      bool      `db:"smoker" json:"smoker"`
 }
 
 type UserJWT struct {
