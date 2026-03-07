@@ -19,6 +19,10 @@ func WithString(key, val string) Field {
 	return Field{a: slog.String(key, val)}
 }
 
+func WithPath(path string) Field {
+	return WithString("path", path)
+}
+
 func WithUnt64(key string, val uint64) Field {
 	return Field{a: slog.Uint64(key, val)}
 }

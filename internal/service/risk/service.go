@@ -83,10 +83,6 @@ func (s *Service) ComputeAll(model *entities.PatientModel) entities.RiskScores {
 		return entities.RiskScores{}
 	}
 	// Need at least age and sex for ASCVD
-	demo := model.Demographics
-	if demo.DateOfBirth.IsZero() || demo.Sex == "" {
-		return entities.RiskScores{}
-	}
 
 	// We need cholesterol values — use defaults if not available
 	// In a real implementation, look up from latest labs
