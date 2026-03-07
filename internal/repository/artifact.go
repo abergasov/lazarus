@@ -30,15 +30,15 @@ var (
 		"object_key",
 		"created_at",
 		"updated_at",
+		"content_summary",
 		"meta_json",
 	}
 	artifactColumnsStr = strings.Join(artifactColumns, ",")
 )
 
-func (r *Repo) CreateArtifact(ctx context.Context, a *entities.Artifact) (uuid.UUID, error) {
-	result := uuid.New()
+func (r *Repo) CreateArtifact(ctx context.Context, artifactID uuid.UUID, a *entities.Artifact) error {
 	q, p := utils.GenerateInsertSQL(TableArtifacts, map[string]any{
-		"a_id":               result.String(),
+		"a_id":               artifactID.String(),
 		"owner_id":           a.OwnerID,
 		"kind":               a.Kind,
 		"status":             entities.ArtifactStatusQuarantined,
@@ -52,10 +52,11 @@ func (r *Repo) CreateArtifact(ctx context.Context, a *entities.Artifact) (uuid.U
 		"object_key":         a.ObjectKey,
 		"created_at":         time.Now(),
 		"updated_at":         time.Now(),
+		"content_summary":    a.ContentSummary,
 		"meta_json":          a.MetaJSON,
 	})
 	_, err := r.db.Client().ExecContext(ctx, q, p...)
-	return result, err
+	return err
 }
 
 func (r *Repo) UpdateArtifactStatus(ctx context.Context, id uuid.UUID, st entities.ArtifactStatus) error {
@@ -72,7 +73,13 @@ func (r *Repo) GetAllArtifactsByOwner(ctx context.Context, ownerID uuid.UUID) ([
 	return database.QueryRowsToStruct[entities.Artifact](ctx, r.db.Client(), q, ownerID)
 }
 
-func (r *Repo) GetArtifactByID(ctx context.Context, artifactID uuid.UUID) (*entities.Artifact, error) {
-	q := fmt.Sprintf("SELECT %s FROM %s WHERE a_id = $1", artifactColumnsStr, TableArtifacts)
-	return database.QueryRowToStruct[entities.Artifact](ctx, r.db.Client(), q, artifactID)
+func (r *Repo) GetArtifactByID(ctx context.Context, userID, artifactID uuid.UUID) (*entities.Artifact, error) {
+	q := fmt.Sprintf("SELECT %s FROM %s WHERE a_id = $1 AND owner_id = $2", artifactColumnsStr, TableArtifacts)
+	return database.QueryRowToStruct[entities.Artifact](ctx, r.db.Client(), q, artifactID, userID)
+}
+
+func (r *Repo) DeleteArtifact(ctx context.Context, userID, artifactID uuid.UUID) error {
+	q := fmt.Sprintf("DELETE FROM %s WHERE a_id = $1 AND owner_id = $2", TableArtifacts)
+	_, err := r.db.Client().ExecContext(ctx, q, artifactID, userID)
+	return err
 }

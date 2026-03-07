@@ -71,3 +71,14 @@ func (c *Client) Download(ctx context.Context, path string) (io.ReadCloser, erro
 	}
 	return out.Body, nil
 }
+
+func (c *Client) Delete(ctx context.Context, path string) error {
+	key := c.prefix + path
+	if _, err := c.s3.DeleteObject(ctx, &s3.DeleteObjectInput{
+		Bucket: aws.String(c.bucket),
+		Key:    aws.String(key),
+	}); err != nil {
+		return fmt.Errorf("delete object: %w", err)
+	}
+	return nil
+}

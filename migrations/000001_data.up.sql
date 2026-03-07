@@ -39,6 +39,7 @@ create table artifacts
     object_key          varchar(255) not null,
     created_at          timestamptz not null default now(),
     updated_at          timestamptz not null default now(),
+    content_summary     text,
     meta_json           jsonb
 );
 create index idx_artifacts_owner on artifacts (owner_id);
