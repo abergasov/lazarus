@@ -55,6 +55,7 @@ func NewRegistry(deps *Deps) *Registry {
 	r.register(savePlanTool(deps))
 	r.register(addDoctorQuestionTool(deps))
 	r.register(checkContraindicationsTool(deps))
+	r.register(resolveConditionTool(deps))
 	return r
 }
 

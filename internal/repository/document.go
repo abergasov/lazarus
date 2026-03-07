@@ -58,6 +58,20 @@ func (r *DocumentRepo) Delete(ctx context.Context, id uuid.UUID, userID uuid.UUI
 	return err
 }
 
+func (r *DocumentRepo) UpdateMeta(ctx context.Context, id uuid.UUID, category, specialty, summary string, docDate time.Time) {
+	_, _ = r.db.ExecContext(ctx, `
+		UPDATE documents SET category = $1, specialty = $2, summary = $3, document_date = $4
+		WHERE id = $5
+	`, category, nilIfEmpty(specialty), nilIfEmpty(summary), docDate, id)
+}
+
+func nilIfEmpty(s string) *string {
+	if s == "" {
+		return nil
+	}
+	return &s
+}
+
 func (r *DocumentRepo) UpdateParseStatus(ctx context.Context, id uuid.UUID, status string) error {
 	now := time.Now()
 	_, err := r.db.ExecContext(ctx,

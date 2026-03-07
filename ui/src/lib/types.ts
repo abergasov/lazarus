@@ -113,6 +113,9 @@ export type Document = {
   size_bytes: number | null;
   source_name: string | null;
   source_type: string;
+  category: string;
+  specialty: string | null;
+  summary: string | null;
   document_date: string | null;
   parse_status: string;
   parsed_at: string | null;

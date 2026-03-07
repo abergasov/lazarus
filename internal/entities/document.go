@@ -16,6 +16,9 @@ type Document struct {
 	SizeBytes    *int64     `json:"size_bytes"    db:"size_bytes"`
 	SourceName   *string    `json:"source_name"   db:"source_name"`
 	SourceType   string     `json:"source_type"   db:"source_type"`
+	Category     string     `json:"category"      db:"category"`
+	Specialty    *string    `json:"specialty"     db:"specialty"`
+	Summary      *string    `json:"summary"       db:"summary"`
 	DocumentDate *time.Time `json:"document_date" db:"document_date"`
 	ParseStatus  string     `json:"parse_status"  db:"parse_status"`
 	ParsedAt     *time.Time `json:"parsed_at"     db:"parsed_at"`

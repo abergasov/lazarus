@@ -137,10 +137,13 @@ func (s *Service) ReParsePending(ctx context.Context) {
 
 // parsedData is the expected JSON structure from the LLM OCR
 type parsedData struct {
-	LabResults []parsedLab `json:"lab_results"`
-	Medications []parsedMed `json:"medications"`
-	Diagnoses  []parsedDiag `json:"diagnoses"`
-	Date       string       `json:"date"`
+	LabResults  []parsedLab  `json:"lab_results"`
+	Medications []parsedMed  `json:"medications"`
+	Diagnoses   []parsedDiag `json:"diagnoses"`
+	Date        string       `json:"date"`
+	Category    string       `json:"category"`
+	Specialty   string       `json:"specialty"`
+	Summary     string       `json:"summary"`
 }
 
 type parsedLab struct {
@@ -320,7 +323,11 @@ func (s *Service) Parse(ctx context.Context, docID uuid.UUID) {
 		}
 	}
 
-	slog.Info("parse: complete", "doc_id", docID, "labs", labCount, "meds", medCount)
+	// Update document metadata from parsed content
+	category := classifyDocument(data)
+	s.docRepo.UpdateMeta(ctx, docID, category, data.Specialty, data.Summary, docDate)
+
+	slog.Info("parse: complete", "doc_id", docID, "labs", labCount, "meds", medCount, "category", category)
 	_ = s.docRepo.UpdateParseStatus(ctx, docID, entities.ParseStatusDone)
 }
 
@@ -397,6 +404,48 @@ func prepareImages(data []byte, mimeType string) (pages [][]byte, outMime string
 	return pages, "image/png", nil
 }
 
-const parseDocumentSystemPrompt = `Extract structured medical data. Return ONLY a JSON object, no markdown fences, no explanation.
-Schema: {"lab_results":[{"name":"","value":0,"unit":"","range":"","flag":"normal|high|low","date":"YYYY-MM-DD"}],"medications":[{"name":"","dose":"","frequency":""}],"diagnoses":[{"code":"","name":""}],"date":"YYYY-MM-DD"}
-Omit empty arrays. Omit unknown fields.`
+// classifyDocument determines the document category from parsed content.
+func classifyDocument(data parsedData) string {
+	if data.Category != "" {
+		// LLM provided a category — validate it
+		switch data.Category {
+		case "lab_result", "specialist_visit", "prescription", "imaging", "discharge", "referral", "vaccination", "insurance":
+			return data.Category
+		}
+	}
+	// Fallback heuristic
+	if len(data.LabResults) > 0 {
+		return "lab_result"
+	}
+	if len(data.Medications) > 0 && len(data.Diagnoses) == 0 {
+		return "prescription"
+	}
+	if len(data.Diagnoses) > 0 {
+		return "specialist_visit"
+	}
+	return "other"
+}
+
+const parseDocumentSystemPrompt = `Extract structured medical data from this document. Return ONLY a JSON object, no markdown fences, no explanation.
+
+Schema:
+{
+  "lab_results": [{"name":"","value":0,"unit":"","range":"","flag":"normal|high|low","date":"YYYY-MM-DD"}],
+  "medications": [{"name":"","dose":"","frequency":""}],
+  "diagnoses": [{"code":"ICD-10","name":""}],
+  "date": "YYYY-MM-DD",
+  "category": "lab_result|specialist_visit|prescription|imaging|discharge|referral|vaccination|other",
+  "specialty": "e.g. gastroenterology, urology, psychiatry, general_practice, endocrinology",
+  "summary": "One-line summary of what this document is about"
+}
+
+Category guide:
+- lab_result: blood work, urine analysis, any lab test results
+- specialist_visit: doctor visit notes, examination results, consultation reports
+- prescription: medication prescriptions
+- imaging: X-ray, MRI, CT, ultrasound reports
+- discharge: hospital discharge summaries
+- referral: referral letters
+- vaccination: vaccination records
+
+Omit empty arrays. Always include date, category, specialty (if applicable), and summary.`
