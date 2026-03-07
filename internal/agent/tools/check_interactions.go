@@ -18,7 +18,7 @@ func checkInteractionsTool(deps *Deps) *Tool {
 	return &Tool{
 		Name:        "check_interactions",
 		Description: "Check for drug-drug interactions among the patient's active medications using the knowledge base.",
-		Phases:      []string{entities.PhasePreparing, entities.PhaseDuring},
+		Phases:      []string{entities.PhasePreparing, entities.PhaseDuring, entities.PhaseCompleted},
 		Schema:      schema,
 		Execute: func(ctx context.Context, args json.RawMessage, uc *UserContext) (any, error) {
 			if deps.DB == nil || deps.KBRepo == nil {

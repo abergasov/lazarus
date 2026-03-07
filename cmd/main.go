@@ -108,7 +108,7 @@ func main() {
 		assembler := agent.NewAssembler(db, patientStore, labService, riskService, kbRepo)
 
 		// Orchestrator
-		orchestrator := agent.NewOrchestrator(assembler, providerReg, toolRegistry, sessionStore, patientStore)
+		orchestrator := agent.NewOrchestrator(assembler, providerReg, toolRegistry, sessionStore, patientStore, db)
 
 		// Push notification service
 		pushService := push.NewService(db)

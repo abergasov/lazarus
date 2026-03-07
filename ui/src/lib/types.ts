@@ -12,6 +12,7 @@ export type Visit = {
   status: 'preparing' | 'during' | 'completed' | 'cancelled';
   plan: VisitPlan | null;
   outcome: VisitOutcome | null;
+  notes: VisitNote[] | null;
   follow_up_date: string | null;
   created_at: string;
   updated_at: string;
@@ -44,6 +45,7 @@ export type VisitOutcome = {
 
 export type ActionItem = { action: string; reason: string; due_date?: string; done: boolean };
 export type FollowUp = { action: string; reason: string; from_visit: string; due_date?: string; completed: boolean };
+export type VisitNote = { text: string; timestamp: string };
 
 export type Lab = {
   id: string;
@@ -103,9 +105,17 @@ export type RiskScore = { value: number; label: string; computed_at: string };
 
 export type Document = {
   id: string;
+  user_id: string;
+  visit_id: string | null;
+  storage_key: string;
+  mime_type: string | null;
   file_name: string | null;
+  size_bytes: number | null;
+  source_name: string | null;
   source_type: string;
+  document_date: string | null;
   parse_status: string;
+  parsed_at: string | null;
   created_at: string;
 };
 
@@ -137,11 +147,32 @@ export type Conversation = {
   messages: { role: string; content: string; timestamp: string }[];
   created_at: string;
   updated_at: string;
+  message_count?: number;
+};
+
+export type PendingQuestion = {
+  text: string;
+  rationale: string;
+  visit_id: string;
+  doctor_name: string;
+  visit_date: string;
+};
+
+export type BacklogQuestion = {
+  id: string;
+  text: string;
+  rationale: string;
+  urgency: string;
+  source: string;
+  asked: boolean;
+  visit_id: string | null;
+  created_at: string;
 };
 
 export type HomeData = {
   primary_card: InsightCard | null;
   visits: Visit[];
   insights: InsightCard[];
+  pending_questions: PendingQuestion[];
   onboarding_completed: boolean;
 };

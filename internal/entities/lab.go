@@ -7,18 +7,19 @@ import (
 )
 
 type LabResult struct {
-	ID            uuid.UUID  `json:"id"             db:"id"`
-	UserID        uuid.UUID  `json:"user_id"        db:"user_id"`
-	DocumentID    *uuid.UUID `json:"document_id"    db:"document_id"`
-	LoincCode     *string    `json:"loinc_code"     db:"loinc_code"`
-	Value         float64    `json:"value"          db:"value"`
-	Unit          *string    `json:"unit"           db:"unit"`
-	ReferenceLow  *float64   `json:"reference_low"  db:"reference_low"`
-	ReferenceHigh *float64   `json:"reference_high" db:"reference_high"`
-	Flag          string     `json:"flag"           db:"flag"`
-	LabName       *string    `json:"lab_name"       db:"lab_name"`
-	CollectedAt   time.Time  `json:"collected_at"   db:"collected_at"`
-	CreatedAt     time.Time  `json:"created_at"     db:"created_at"`
+	ID             uuid.UUID  `json:"id"              db:"id"`
+	UserID         uuid.UUID  `json:"user_id"         db:"user_id"`
+	DocumentID     *uuid.UUID `json:"document_id"     db:"document_id"`
+	LoincCode      *string    `json:"loinc_code"      db:"loinc_code"`
+	Value          float64    `json:"value"           db:"value"`
+	Unit           *string    `json:"unit"            db:"unit"`
+	ReferenceLow   *float64   `json:"reference_low"   db:"reference_low"`
+	ReferenceHigh  *float64   `json:"reference_high"  db:"reference_high"`
+	Flag           string     `json:"flag"            db:"flag"`
+	LabName        *string    `json:"lab_name"        db:"lab_name"`
+	NormalizedName *string    `json:"normalized_name" db:"normalized_name"`
+	CollectedAt    time.Time  `json:"collected_at"    db:"collected_at"`
+	CreatedAt      time.Time  `json:"created_at"      db:"created_at"`
 }
 
 const (

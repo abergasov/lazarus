@@ -47,7 +47,7 @@ func flagAbnormalsTool(deps *Deps) *Tool {
 	return &Tool{
 		Name:        "flag_abnormals",
 		Description: "Deterministically check recent lab values against age/sex-specific reference ranges. Returns lists of normal, abnormal, and critical values.",
-		Phases:      []string{entities.PhasePreparing, entities.PhaseDuring},
+		Phases:      []string{entities.PhasePreparing, entities.PhaseDuring, entities.PhaseCompleted},
 		Schema:      schema,
 		Execute: func(ctx context.Context, args json.RawMessage, uc *UserContext) (any, error) {
 			var a flagArgs

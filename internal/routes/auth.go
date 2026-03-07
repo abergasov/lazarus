@@ -25,6 +25,15 @@ const (
 	oauthGoogleUrlAPI = "https://www.googleapis.com/oauth2/v2/userinfo?access_token="
 )
 
+// externalScheme returns the scheme the client originally used, respecting
+// X-Forwarded-Proto set by reverse proxies like ngrok or load balancers.
+func externalScheme(c *fiber.Ctx) string {
+	if fp := c.Get("X-Forwarded-Proto"); fp != "" {
+		return fp
+	}
+	return c.Protocol()
+}
+
 func (s *Server) oauthGoogleLogin(c *fiber.Ctx) error {
 	// generate cookie
 	b := make([]byte, 16)
@@ -37,10 +46,7 @@ func (s *Server) oauthGoogleLogin(c *fiber.Ctx) error {
 	})
 	// Build redirect URL dynamically from the incoming request host so the app
 	// works from localhost, LAN IP, or any other hostname without config changes.
-	scheme := "http"
-	if c.Protocol() == "https" {
-		scheme = "https"
-	}
+	scheme := externalScheme(c)
 	cfg := *s.googleOAuth // shallow copy so we don't mutate the shared config
 	cfg.RedirectURL = scheme + "://" + c.Get("Host") + "/api/auth/google/callback"
 	return c.Redirect(cfg.AuthCodeURL(state), http.StatusTemporaryRedirect)
@@ -55,10 +61,7 @@ func (s *Server) oauthGoogleCallback(c *fiber.Ctx) error {
 	}
 
 	// Build redirect URL dynamically to match what was sent in the login request
-	scheme := "http"
-	if c.Protocol() == "https" {
-		scheme = "https"
-	}
+	scheme := externalScheme(c)
 	callbackURL := scheme + "://" + c.Get("Host") + "/api/auth/google/callback"
 
 	usr, err := s.getUserDataFromGoogle(c.FormValue("code"), callbackURL)
@@ -77,11 +80,7 @@ func (s *Server) oauthGoogleCallback(c *fiber.Ctx) error {
 	}
 	s.setSecretCookie(c, TokenCookie, jwt)
 	// Redirect to the same host the user came from
-	frontendScheme := "http"
-	if c.Protocol() == "https" {
-		frontendScheme = "https"
-	}
-	frontendBase := frontendScheme + "://" + c.Get("Host")
+	frontendBase := scheme + "://" + c.Get("Host")
 	redirectTo := frontendBase + "/?" + url.Values{"code": {code.String()}}.Encode()
 	return c.Redirect(redirectTo, http.StatusTemporaryRedirect)
 }

@@ -1,6 +1,6 @@
 <script lang="ts">
   import { goto } from '$app/navigation';
-  import { home, insights as insightsApi, conversations as convApi, documents, visits } from '$lib/api';
+  import { home, insights as insightsApi, documents, visits } from '$lib/api';
   import type { HomeData, InsightCard as InsightCardType } from '$lib/types';
   import InsightCard from '$lib/components/InsightCard.svelte';
   import PhaseBadge from '$lib/components/PhaseBadge.svelte';
@@ -11,7 +11,8 @@
   let loading = $state(true);
   let error = $state('');
   let showConversation = $state(false);
-  let conversationId = $state('');
+  let convContextType = $state('');
+  let convContextId = $state('');
   let conversationLabel = $state('');
   let showNewVisit = $state(false);
   let newVisit = $state({ doctor_name: '', specialty: '', visit_date: '', reason: '' });
@@ -31,9 +32,9 @@
     }
   }
 
-  async function askAbout(card: InsightCardType) {
-    const conv = await convApi.create('insight', card.id);
-    conversationId = conv.id;
+  function askAbout(card: InsightCardType) {
+    convContextType = 'insight';
+    convContextId = card.id;
     conversationLabel = card.title;
     showConversation = true;
   }
@@ -82,16 +83,13 @@
       <div class="primary-section">
         <InsightCard card={data.primary_card} ondismiss={dismissInsight} onask={askAbout} />
       </div>
-    {:else}
+    {:else if data.visits.length === 0 && !data.onboarding_completed}
       <div class="calm-state">
         <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="var(--green)" stroke-width="1.5"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
-        <h2>Everything looks good</h2>
-        <p class="calm-text">No new insights. Upload a document to get started.</p>
+        <h2>Welcome</h2>
+        <p class="calm-text">Upload a medical document to get started.</p>
+        <UploadZone onupload={handleUpload} label="Drop a medical document to get personalized insights" />
       </div>
-    {/if}
-
-    {#if data.insights.length === 0 && !data.primary_card}
-      <UploadZone onupload={handleUpload} label="Drop a medical document to get personalized insights" />
     {/if}
 
     <div class="section">
@@ -134,6 +132,30 @@
       {/if}
     </div>
 
+    {#if data.pending_questions && data.pending_questions.length > 0}
+      <div class="section">
+        <div class="section-header">
+          <h2>Unassigned Questions</h2>
+          <a href="/app/records?tab=3" class="see-all">Manage</a>
+        </div>
+        <div class="question-backlog">
+          {#each data.pending_questions.slice(0, 3) as q}
+            <div class="question-row">
+              <div class="question-text">{q.text}</div>
+              <div class="question-meta">
+                <span class="unlinked-label">Not assigned to an appointment</span>
+              </div>
+            </div>
+          {/each}
+          {#if data.pending_questions.length > 3}
+            <a href="/app/records?tab=3" class="question-row see-more">
+              +{data.pending_questions.length - 3} more questions
+            </a>
+          {/if}
+        </div>
+      </div>
+    {/if}
+
     {#if data.insights.length > 1}
       <div class="section">
         <h2>Recent Insights</h2>
@@ -146,7 +168,7 @@
 </div>
 
 {#if showConversation}
-  <ConversationSheet {conversationId} contextLabel={conversationLabel} onclose={() => { showConversation = false; }} />
+  <ConversationSheet contextType={convContextType} contextId={convContextId} contextLabel={conversationLabel} onclose={() => { showConversation = false; }} />
 {/if}
 
 <style>
@@ -208,4 +230,28 @@
   .submit-btn:hover { opacity: 0.9; }
   .submit-btn:disabled { opacity: 0.4; cursor: default; }
   .hint { font-size: 14px; color: var(--text3); text-align: center; padding: 20px 0; }
+
+  .question-count {
+    font-size: 12px; font-weight: 700; background: var(--blue); color: white;
+    border-radius: 10px; padding: 2px 8px; min-width: 20px; text-align: center;
+  }
+  .question-backlog { background: var(--bg2); border-radius: var(--radius); overflow: hidden; }
+  .question-row {
+    display: block; padding: 14px 16px; text-decoration: none; color: var(--text);
+    border-bottom: 1px solid var(--separator); transition: background 0.15s;
+  }
+  .question-row:last-child { border-bottom: none; }
+  .question-row:hover { background: var(--bg); }
+  .question-text { font-size: 14px; font-weight: 500; margin-bottom: 4px; }
+  .question-meta { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text3); }
+  .question-meta .dot { width: 3px; height: 3px; border-radius: 50%; background: var(--text3); }
+  .unlinked-label { color: var(--orange); font-weight: 500; }
+  .see-all {
+    font-size: 14px; font-weight: 500; color: var(--blue); text-decoration: none;
+  }
+  .see-all:hover { text-decoration: underline; }
+  .see-more {
+    text-align: center; font-size: 13px; font-weight: 500; color: var(--blue);
+    justify-content: center;
+  }
 </style>

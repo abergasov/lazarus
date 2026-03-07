@@ -7,6 +7,7 @@ import (
 	"runtime/debug"
 
 	"github.com/google/uuid"
+	"github.com/jmoiron/sqlx"
 	"lazarus/internal/agent/agents"
 	"lazarus/internal/agent/tools"
 	"lazarus/internal/entities"
@@ -19,6 +20,7 @@ type Orchestrator struct {
 	toolReg   *tools.Registry
 	sessions  *SessionStore
 	patients  *PatientModelStore
+	auditDB   *sqlx.DB
 }
 
 func NewOrchestrator(
@@ -27,6 +29,7 @@ func NewOrchestrator(
 	toolReg *tools.Registry,
 	sessions *SessionStore,
 	patients *PatientModelStore,
+	auditDB *sqlx.DB,
 ) *Orchestrator {
 	return &Orchestrator{
 		assembler: assembler,
@@ -34,6 +37,7 @@ func NewOrchestrator(
 		toolReg:   toolReg,
 		sessions:  sessions,
 		patients:  patients,
+		auditDB:   auditDB,
 	}
 }
 
@@ -58,6 +62,10 @@ func (o *Orchestrator) Run(ctx context.Context, sess *Session, userMsg string) (
 
 		// 2. Route to sub-agent
 		userIDStr := sess.UserID.String()
+		visitIDStr := sess.VisitID.String()
+		if sess.VisitID == (uuid.UUID{}) {
+			visitIDStr = ""
+		}
 		var runErr error
 		// Pick the right provider role — general conversations fall back to "prep" provider
 		provRole := sess.Phase
@@ -72,8 +80,8 @@ func (o *Orchestrator) Run(ctx context.Context, sess *Session, userMsg string) (
 				out <- entities.ClientEvent{Type: entities.EventError, Payload: err.Error()}
 				return
 			}
-			a := agents.NewGeneralAgent(p, model, o.toolReg)
-			runErr = a.Execute(ctx, sess.Messages, ac.SystemPromptContext, userIDStr, userMsg, out)
+			a := agents.NewGeneralAgent(p, model, o.toolReg, o.auditDB)
+			runErr = a.Execute(ctx, sess.Messages, ac.SystemPromptContext, userIDStr, visitIDStr, userMsg, out)
 
 		case entities.PhasePreparing:
 			p, model, err := o.providers.ForRole("prep")
@@ -81,8 +89,8 @@ func (o *Orchestrator) Run(ctx context.Context, sess *Session, userMsg string) (
 				out <- entities.ClientEvent{Type: entities.EventError, Payload: err.Error()}
 				return
 			}
-			a := agents.NewPrepAgent(p, model, o.toolReg)
-			runErr = a.Execute(ctx, sess.Messages, ac.SystemPromptContext, userIDStr, userMsg, out)
+			a := agents.NewPrepAgent(p, model, o.toolReg, o.auditDB)
+			runErr = a.Execute(ctx, sess.Messages, ac.SystemPromptContext, userIDStr, visitIDStr, userMsg, out)
 
 		case entities.PhaseDuring:
 			p, model, err := o.providers.ForRole("during")
@@ -90,8 +98,8 @@ func (o *Orchestrator) Run(ctx context.Context, sess *Session, userMsg string) (
 				out <- entities.ClientEvent{Type: entities.EventError, Payload: err.Error()}
 				return
 			}
-			a := agents.NewDuringAgent(p, model, o.toolReg)
-			runErr = a.Execute(ctx, sess.Messages, ac.SystemPromptContext, userIDStr, userMsg, out)
+			a := agents.NewDuringAgent(p, model, o.toolReg, o.auditDB)
+			runErr = a.Execute(ctx, sess.Messages, ac.SystemPromptContext, userIDStr, visitIDStr, userMsg, out)
 
 		case entities.PhaseCompleted:
 			p, model, err := o.providers.ForRole("after")
@@ -99,8 +107,8 @@ func (o *Orchestrator) Run(ctx context.Context, sess *Session, userMsg string) (
 				out <- entities.ClientEvent{Type: entities.EventError, Payload: err.Error()}
 				return
 			}
-			a := agents.NewAfterAgent(p, model, o.toolReg)
-			runErr = a.Execute(ctx, sess.Messages, ac.SystemPromptContext, userIDStr, userMsg, out)
+			a := agents.NewAfterAgent(p, model, o.toolReg, o.auditDB)
+			runErr = a.Execute(ctx, sess.Messages, ac.SystemPromptContext, userIDStr, visitIDStr, userMsg, out)
 
 		default:
 			out <- entities.ClientEvent{Type: entities.EventError, Payload: fmt.Sprintf("unknown phase: %s", sess.Phase)}

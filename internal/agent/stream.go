@@ -1,37 +1,31 @@
 package agent
 
 import (
+	"bufio"
 	"encoding/json"
 	"fmt"
 
-	"github.com/gofiber/fiber/v2"
 	"lazarus/internal/entities"
 )
 
-type StreamWriter struct {
-	ctx *fiber.Ctx
+// BufStreamWriter writes SSE events to a bufio.Writer provided by
+// fasthttp's SetBodyStreamWriter callback, enabling true streaming.
+type BufStreamWriter struct {
+	w *bufio.Writer
 }
 
-func NewStreamWriter(c *fiber.Ctx) *StreamWriter {
-	c.Set("Content-Type", "text/event-stream")
-	c.Set("Cache-Control", "no-cache")
-	c.Set("Connection", "keep-alive")
-	c.Set("X-Accel-Buffering", "no")
-	return &StreamWriter{ctx: c}
+func NewBufStreamWriter(w *bufio.Writer) *BufStreamWriter {
+	return &BufStreamWriter{w: w}
 }
 
-func (w *StreamWriter) Write(ev entities.ClientEvent) error {
+func (sw *BufStreamWriter) Write(ev entities.ClientEvent) error {
 	data, err := json.Marshal(ev)
 	if err != nil {
 		return err
 	}
-	_, err = fmt.Fprintf(w.ctx.Response().BodyWriter(),
-		"event: %s\ndata: %s\n\n", ev.Type, data)
-	return err
-}
-
-func (w *StreamWriter) Flush() {
-	if f, ok := w.ctx.Response().BodyWriter().(interface{ Flush() }); ok {
-		f.Flush()
+	_, err = fmt.Fprintf(sw.w, "event: %s\ndata: %s\n\n", ev.Type, data)
+	if err != nil {
+		return err
 	}
+	return sw.w.Flush()
 }

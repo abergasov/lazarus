@@ -132,15 +132,32 @@ func (s *Server) initRoutes() {
 	api.Post("/visits", s.wrapAuthUUID(s.handleCreateVisit))
 	api.Get("/visits", s.wrapAuthUUID(s.handleListVisits))
 	api.Get("/visits/:id", s.wrapAuthUUID(s.handleGetVisit))
+	api.Delete("/visits/:id", s.wrapAuthUUID(s.handleDeleteVisit))
 	api.Put("/visits/:id/phase", s.wrapAuthUUID(s.handleUpdateVisitPhase))
+	api.Put("/visits/:id/plan", s.wrapAuthUUID(s.handleUpdateVisitPlan))
+	api.Put("/visits/:id/outcome", s.wrapAuthUUID(s.handleUpdateVisitOutcome))
+	api.Post("/visits/:id/notes", s.wrapAuthUUID(s.handleAddVisitNote))
 
 	api.Post("/documents", s.wrapAuthUUID(s.handleDocumentUpload))
 	api.Get("/documents", s.wrapAuthUUID(s.handleListDocuments))
+	api.Get("/documents/:id", s.wrapAuthUUID(s.handleGetDocument))
 	api.Delete("/documents/:id", s.wrapAuthUUID(s.handleDeleteDocument))
 	api.Post("/documents/:id/reparse", s.wrapAuthUUID(s.handleReparseDocument))
+	api.Get("/documents/:id/file", s.wrapAuthUUID(s.handleServeDocument))
+	api.Put("/documents/:id/link", s.wrapAuthUUID(s.handleLinkDocument))
 
+	api.Post("/labs", s.wrapAuthUUID(s.handleCreateLab))
 	api.Get("/labs", s.wrapAuthUUID(s.handleListLabs))
+	api.Get("/labs/by-document/:docId", s.wrapAuthUUID(s.handleListLabsByDocument))
+	api.Put("/labs/:id", s.wrapAuthUUID(s.handleUpdateLab))
+	api.Delete("/labs/:id", s.wrapAuthUUID(s.handleDeleteLab))
 	api.Get("/labs/:loinc/trend", s.wrapAuthUUID(s.handleLabTrend))
+
+	// Questions backlog
+	api.Get("/questions", s.wrapAuthUUID(s.handleListQuestions))
+	api.Post("/questions", s.wrapAuthUUID(s.handleCreateQuestion))
+	api.Put("/questions/:id/link", s.wrapAuthUUID(s.handleLinkQuestion))
+	api.Put("/questions/bulk-link", s.wrapAuthUUID(s.handleBulkLinkQuestions))
 
 	api.Get("/medications", s.wrapAuthUUID(s.handleListMedications))
 	api.Post("/medications", s.wrapAuthUUID(s.handleAddMedication))
@@ -162,8 +179,10 @@ func (s *Server) initRoutes() {
 
 	// Conversations (scoped)
 	api.Post("/conversations", s.wrapAuthUUID(s.handleCreateConversation))
+	api.Get("/conversations", s.wrapAuthUUID(s.handleListConversationsByContext))
 	api.Get("/conversations/:id", s.wrapAuthUUID(s.handleGetConversation))
 	api.Post("/conversations/:id/messages", s.wrapAuthUUID(s.handleConversationMessage))
+	api.Delete("/conversations/:id", s.wrapAuthUUID(s.handleDeleteConversation))
 
 	// Onboarding
 	api.Post("/onboarding/upload", s.wrapAuthUUID(s.handleOnboardingUpload))

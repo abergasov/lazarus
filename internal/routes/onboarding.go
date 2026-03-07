@@ -1,9 +1,11 @@
 package routes
 
 import (
+	"bufio"
 	"context"
 	"encoding/json"
 	"fmt"
+	"mime/multipart"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
@@ -30,107 +32,106 @@ func (s *Server) handleOnboardingUpload(c *fiber.Ctx, userID uuid.UUID) error {
 		return c.Status(400).JSON(fiber.Map{"error": "at least one file required"})
 	}
 
-	// Stream processing steps via SSE
-	writer := agent.NewStreamWriter(c)
+	// Capture values needed inside the stream callback
+	fiberCtx := c.Context()
+	reqCtx := context.Background() // can't use c.Context() inside stream callback
+
+	c.Set("Content-Type", "text/event-stream")
+	c.Set("Cache-Control", "no-cache")
+	c.Set("Connection", "keep-alive")
+	c.Set("X-Accel-Buffering", "no")
 	c.Status(200)
 
-	// Upload all documents
-	totalFiles := len(files)
-	writer.Write(entities.ClientEvent{
-		Type:    "processing_step",
-		Payload: map[string]string{"step": "upload", "status": "running", "label": fmt.Sprintf("Uploading %d document(s)...", totalFiles)},
-	})
-	writer.Flush()
+	// Copy file headers since multipart form may be freed after handler returns
+	filesCopy := make([]*multipart.FileHeader, len(files))
+	copy(filesCopy, files)
 
-	for i, file := range files {
-		doc, err := s.docSvc.Upload(c.Context(), userID, "", file, "onboarding")
-		if err != nil {
-			writer.Write(entities.ClientEvent{
-				Type:    "processing_step",
-				Payload: map[string]string{"step": "upload", "status": "error", "label": fmt.Sprintf("Failed to upload %s: %s", file.Filename, err.Error())},
-			})
-			writer.Flush()
-			continue
-		}
-
-		go s.docSvc.Parse(context.Background(), doc.ID)
+	fiberCtx.SetBodyStreamWriter(func(w *bufio.Writer) {
+		writer := agent.NewBufStreamWriter(w)
+		totalFiles := len(filesCopy)
 
 		writer.Write(entities.ClientEvent{
 			Type:    "processing_step",
-			Payload: map[string]string{"step": "upload", "status": "running", "label": fmt.Sprintf("Uploaded %d/%d: %s", i+1, totalFiles, file.Filename)},
+			Payload: map[string]string{"step": "upload", "status": "running", "label": fmt.Sprintf("Uploading %d document(s)...", totalFiles)},
 		})
-		writer.Flush()
-	}
 
-	writer.Write(entities.ClientEvent{
-		Type:    "processing_step",
-		Payload: map[string]string{"step": "upload", "status": "done", "label": fmt.Sprintf("%d document(s) uploaded", totalFiles)},
-	})
-	writer.Flush()
+		for i, file := range filesCopy {
+			doc, err := s.docSvc.Upload(reqCtx, userID, "", file, "onboarding")
+			if err != nil {
+				writer.Write(entities.ClientEvent{
+					Type:    "processing_step",
+					Payload: map[string]string{"step": "upload", "status": "error", "label": fmt.Sprintf("Failed to upload %s: %s", file.Filename, err.Error())},
+				})
+				continue
+			}
 
-	// Step 2: Parse
-	writer.Write(entities.ClientEvent{
-		Type:    "processing_step",
-		Payload: map[string]string{"step": "parse", "status": "running", "label": "Reading your documents..."},
-	})
-	writer.Flush()
+			go s.docSvc.Parse(context.Background(), doc.ID)
 
-	writer.Write(entities.ClientEvent{
-		Type:    "processing_step",
-		Payload: map[string]string{"step": "parse", "status": "done", "label": "Documents parsed"},
-	})
-	writer.Flush()
+			writer.Write(entities.ClientEvent{
+				Type:    "processing_step",
+				Payload: map[string]string{"step": "upload", "status": "running", "label": fmt.Sprintf("Uploaded %d/%d: %s", i+1, totalFiles, file.Filename)},
+			})
+		}
 
-	// Step 3: Extract profile
-	writer.Write(entities.ClientEvent{
-		Type:    "processing_step",
-		Payload: map[string]string{"step": "extract", "status": "running", "label": "Extracting your health profile..."},
-	})
-	writer.Flush()
+		writer.Write(entities.ClientEvent{
+			Type:    "processing_step",
+			Payload: map[string]string{"step": "upload", "status": "done", "label": fmt.Sprintf("%d document(s) uploaded", totalFiles)},
+		})
 
-	// Load or create patient model
-	pmRepo := repository.NewPatientModelRepo(s.db)
-	model, _ := pmRepo.Load(c.Context(), userID)
-	if model == nil {
-		model = &entities.PatientModel{UserID: userID}
-	}
+		writer.Write(entities.ClientEvent{
+			Type:    "processing_step",
+			Payload: map[string]string{"step": "parse", "status": "running", "label": "Reading your documents..."},
+		})
 
-	// If orchestrator is available, run extraction agent
-	if s.orchestrator != nil {
-		sess, err := s.orchestrator.GetOrCreateSession(c.Context(), userID, "")
-		if err == nil {
-			extractPrompt := "Extract demographics, conditions, and medications from the uploaded medical documents. Return structured data."
-			eventCh, err := s.orchestrator.Run(c.Context(), sess, extractPrompt)
+		writer.Write(entities.ClientEvent{
+			Type:    "processing_step",
+			Payload: map[string]string{"step": "parse", "status": "done", "label": "Documents parsed"},
+		})
+
+		writer.Write(entities.ClientEvent{
+			Type:    "processing_step",
+			Payload: map[string]string{"step": "extract", "status": "running", "label": "Extracting your health profile..."},
+		})
+
+		// Load or create patient model
+		pmRepo := repository.NewPatientModelRepo(s.db)
+		model, _ := pmRepo.Load(reqCtx, userID)
+		if model == nil {
+			model = &entities.PatientModel{UserID: userID}
+		}
+
+		// If orchestrator is available, run extraction agent
+		if s.orchestrator != nil {
+			sess, err := s.orchestrator.GetOrCreateSession(reqCtx, userID, "")
 			if err == nil {
-				for ev := range eventCh {
-					if ev.Type == entities.EventTextDelta || ev.Type == entities.EventStructured {
-						writer.Write(ev)
-						writer.Flush()
+				extractPrompt := "Extract demographics, conditions, and medications from the uploaded medical documents. Return structured data."
+				eventCh, err := s.orchestrator.Run(reqCtx, sess, extractPrompt)
+				if err == nil {
+					for ev := range eventCh {
+						if ev.Type == entities.EventTextDelta || ev.Type == entities.EventStructured {
+							writer.Write(ev)
+						}
 					}
 				}
 			}
 		}
-	}
 
-	writer.Write(entities.ClientEvent{
-		Type:    "processing_step",
-		Payload: map[string]string{"step": "extract", "status": "done", "label": "Profile extracted"},
-	})
-	writer.Flush()
+		writer.Write(entities.ClientEvent{
+			Type:    "processing_step",
+			Payload: map[string]string{"step": "extract", "status": "done", "label": "Profile extracted"},
+		})
 
-	// Return the model for confirmation
-	modelJSON, _ := json.Marshal(model)
-	writer.Write(entities.ClientEvent{
-		Type:    "profile_extracted",
-		Payload: json.RawMessage(modelJSON),
-	})
-	writer.Flush()
+		modelJSON, _ := json.Marshal(model)
+		writer.Write(entities.ClientEvent{
+			Type:    "profile_extracted",
+			Payload: json.RawMessage(modelJSON),
+		})
 
-	writer.Write(entities.ClientEvent{
-		Type:    entities.EventDone,
-		Payload: entities.DonePayload{},
+		writer.Write(entities.ClientEvent{
+			Type:    entities.EventDone,
+			Payload: entities.DonePayload{},
+		})
 	})
-	writer.Flush()
 
 	return nil
 }

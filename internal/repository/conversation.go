@@ -99,6 +99,43 @@ func (r *ConversationRepo) ListByUser(ctx context.Context, userID uuid.UUID) ([]
 	return convs, nil
 }
 
+func (r *ConversationRepo) ListByContext(ctx context.Context, userID uuid.UUID, contextType, contextID string) ([]entities.Conversation, error) {
+	var rows []struct {
+		ID          uuid.UUID `db:"id"`
+		UserID      uuid.UUID `db:"user_id"`
+		ContextType string    `db:"context_type"`
+		ContextID   string    `db:"context_id"`
+		MsgCount    int       `db:"msg_count"`
+		CreatedAt   time.Time `db:"created_at"`
+		UpdatedAt   time.Time `db:"updated_at"`
+	}
+	err := r.db.SelectContext(ctx, &rows, `
+		SELECT id, user_id, context_type, context_id,
+		       jsonb_array_length(COALESCE(messages, '[]'::jsonb)) AS msg_count,
+		       created_at, updated_at
+		FROM conversations
+		WHERE user_id = $1 AND context_type = $2 AND context_id = $3
+		ORDER BY updated_at DESC
+	`, userID, contextType, contextID)
+	if err != nil {
+		return nil, err
+	}
+	convs := make([]entities.Conversation, len(rows))
+	for i, row := range rows {
+		convs[i] = entities.Conversation{
+			ID: row.ID, UserID: row.UserID, ContextType: row.ContextType, ContextID: row.ContextID,
+			CreatedAt: row.CreatedAt, UpdatedAt: row.UpdatedAt,
+			MessageCount: row.MsgCount,
+		}
+	}
+	return convs, nil
+}
+
+func (r *ConversationRepo) Delete(ctx context.Context, id uuid.UUID, userID uuid.UUID) error {
+	_, err := r.db.ExecContext(ctx, `DELETE FROM conversations WHERE id = $1 AND user_id = $2`, id, userID)
+	return err
+}
+
 func (r *ConversationRepo) GetByContext(ctx context.Context, userID uuid.UUID, contextType, contextID string) (*entities.Conversation, error) {
 	var row struct {
 		ID          uuid.UUID `db:"id"`

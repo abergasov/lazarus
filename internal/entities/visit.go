@@ -19,6 +19,7 @@ type Visit struct {
 	Status       string     `json:"status"        db:"status"`
 	PlanJSON     NullJSON   `json:"plan"          db:"plan_json"`
 	OutcomeJSON  NullJSON   `json:"outcome"       db:"outcome_json"`
+	NotesJSON    NullJSON   `json:"notes"         db:"notes_json"`
 	FollowUpDate *time.Time `json:"follow_up_date" db:"follow_up_date"`
 	CreatedAt    time.Time  `json:"created_at"    db:"created_at"`
 	UpdatedAt    time.Time  `json:"updated_at"    db:"updated_at"`
@@ -54,6 +55,11 @@ const (
 	VisitStatusCompleted = "completed"
 	VisitStatusCancelled = "cancelled"
 )
+
+type VisitNote struct {
+	Text      string    `json:"text"`
+	Timestamp time.Time `json:"timestamp"`
+}
 
 type VisitPlan struct {
 	LeadWith      []VisitPriority `json:"lead_with"`

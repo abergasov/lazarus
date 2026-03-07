@@ -1,6 +1,7 @@
 package routes
 
 import (
+	"bufio"
 	"context"
 	"fmt"
 	"strings"
@@ -17,6 +18,7 @@ import (
 type CreateConversationRequest struct {
 	ContextType string `json:"context_type"`
 	ContextID   string `json:"context_id"`
+	ForceNew    bool   `json:"force_new,omitempty"`
 }
 
 type ConversationMessageRequest struct {
@@ -34,10 +36,12 @@ func (s *Server) handleCreateConversation(c *fiber.Ctx, userID uuid.UUID) error 
 
 	repo := repository.NewConversationRepo(s.db)
 
-	// Check if conversation already exists for this context
-	existing, err := repo.GetByContext(c.Context(), userID, req.ContextType, req.ContextID)
-	if err == nil && existing != nil {
-		return c.JSON(existing)
+	// Check if conversation already exists for this context (unless force_new)
+	if !req.ForceNew {
+		existing, err := repo.GetByContext(c.Context(), userID, req.ContextType, req.ContextID)
+		if err == nil && existing != nil {
+			return c.JSON(existing)
+		}
 	}
 
 	conv := &entities.Conversation{
@@ -50,6 +54,23 @@ func (s *Server) handleCreateConversation(c *fiber.Ctx, userID uuid.UUID) error 
 		return c.Status(500).JSON(fiber.Map{"error": err.Error()})
 	}
 	return c.Status(201).JSON(conv)
+}
+
+func (s *Server) handleListConversationsByContext(c *fiber.Ctx, userID uuid.UUID) error {
+	contextType := c.Query("context_type")
+	contextID := c.Query("context_id")
+	if contextType == "" || contextID == "" {
+		return c.Status(400).JSON(fiber.Map{"error": "context_type and context_id are required"})
+	}
+	repo := repository.NewConversationRepo(s.db)
+	convs, err := repo.ListByContext(c.Context(), userID, contextType, contextID)
+	if err != nil {
+		return c.Status(500).JSON(fiber.Map{"error": err.Error()})
+	}
+	if convs == nil {
+		convs = []entities.Conversation{}
+	}
+	return c.JSON(convs)
 }
 
 func (s *Server) handleGetConversation(c *fiber.Ctx, userID uuid.UUID) error {
@@ -68,6 +89,18 @@ func (s *Server) handleGetConversation(c *fiber.Ctx, userID uuid.UUID) error {
 		return c.Status(403).JSON(fiber.Map{"error": "forbidden"})
 	}
 	return c.JSON(conv)
+}
+
+func (s *Server) handleDeleteConversation(c *fiber.Ctx, userID uuid.UUID) error {
+	id, err := uuid.Parse(c.Params("id"))
+	if err != nil {
+		return c.Status(400).JSON(fiber.Map{"error": "invalid id"})
+	}
+	repo := repository.NewConversationRepo(s.db)
+	if err := repo.Delete(c.Context(), id, userID); err != nil {
+		return c.Status(500).JSON(fiber.Map{"error": err.Error()})
+	}
+	return c.SendStatus(204)
 }
 
 func (s *Server) handleConversationMessage(c *fiber.Ctx, userID uuid.UUID) error {
@@ -141,31 +174,37 @@ func (s *Server) handleConversationMessage(c *fiber.Ctx, userID uuid.UUID) error
 		return c.Status(500).JSON(fiber.Map{"error": err.Error()})
 	}
 
-	// Stream SSE
-	writer := agent.NewStreamWriter(c)
+	// Stream SSE using SetBodyStreamWriter for true chunked streaming
+	c.Set("Content-Type", "text/event-stream")
+	c.Set("Cache-Control", "no-cache")
+	c.Set("Connection", "keep-alive")
+	c.Set("X-Accel-Buffering", "no")
 	c.Status(200)
-	var fullResponse string
-	for ev := range eventCh {
-		if err := writer.Write(ev); err != nil {
-			break
-		}
-		writer.Flush()
-		if ev.Type == entities.EventTextDelta {
-			if p, ok := ev.Payload.(entities.TextDeltaPayload); ok {
-				fullResponse += p.Text
+
+	c.Context().SetBodyStreamWriter(func(w *bufio.Writer) {
+		writer := agent.NewBufStreamWriter(w)
+		var fullResponse string
+		for ev := range eventCh {
+			if err := writer.Write(ev); err != nil {
+				break
+			}
+			if ev.Type == entities.EventTextDelta {
+				if p, ok := ev.Payload.(entities.TextDeltaPayload); ok {
+					fullResponse += p.Text
+				}
 			}
 		}
-	}
 
-	// Save assistant response
-	if fullResponse != "" {
-		assistantMsg := entities.ConversationMessage{
-			Role:      "assistant",
-			Content:   fullResponse,
-			Timestamp: time.Now(),
+		// Save assistant response
+		if fullResponse != "" {
+			assistantMsg := entities.ConversationMessage{
+				Role:      "assistant",
+				Content:   fullResponse,
+				Timestamp: time.Now(),
+			}
+			_ = convRepo.AppendMessage(context.Background(), convID, assistantMsg)
 		}
-		_ = convRepo.AppendMessage(c.Context(), convID, assistantMsg)
-	}
+	})
 
 	return nil
 }
@@ -272,9 +311,186 @@ func (s *Server) buildRichContext(ctx context.Context, userID uuid.UUID, context
 		b.WriteString(s.buildHealthSummary(ctx, userID))
 		return b.String()
 
+	case "document":
+		id, err := uuid.Parse(contextID)
+		if err != nil {
+			return ""
+		}
+		var doc struct {
+			FileName    *string    `db:"file_name"`
+			SourceType  string     `db:"source_type"`
+			ParseStatus string     `db:"parse_status"`
+			CreatedAt   time.Time  `db:"created_at"`
+			ParsedAt    *time.Time `db:"parsed_at"`
+		}
+		err = s.db.GetContext(ctx, &doc,
+			`SELECT file_name, source_type, parse_status, created_at, parsed_at
+			 FROM documents WHERE id = $1 AND user_id = $2`, id, userID)
+		if err != nil {
+			return ""
+		}
+		var b strings.Builder
+		name := "Document"
+		if doc.FileName != nil {
+			name = *doc.FileName
+		}
+		b.WriteString(fmt.Sprintf("The user is asking about this document: \"%s\" (type: %s, uploaded: %s, status: %s)\n\n",
+			name, doc.SourceType, doc.CreatedAt.Format("2006-01-02"), doc.ParseStatus))
+
+		// Include labs extracted from this document
+		type labRow struct {
+			LabName     *string   `db:"lab_name"`
+			Value       float64   `db:"value"`
+			Unit        *string   `db:"unit"`
+			Flag        string    `db:"flag"`
+			CollectedAt time.Time `db:"collected_at"`
+		}
+		var docLabs []labRow
+		_ = s.db.SelectContext(ctx, &docLabs,
+			`SELECT lab_name, value, unit, flag, collected_at
+			 FROM lab_results WHERE document_id = $1 AND user_id = $2
+			 ORDER BY collected_at DESC`, id, userID)
+		if len(docLabs) > 0 {
+			b.WriteString(fmt.Sprintf("Lab results extracted from this document (%d):\n", len(docLabs)))
+			for _, l := range docLabs {
+				lname := "Unknown"
+				if l.LabName != nil {
+					lname = *l.LabName
+				}
+				unit := ""
+				if l.Unit != nil {
+					unit = *l.Unit
+				}
+				flag := ""
+				if l.Flag != "normal" && l.Flag != "" {
+					flag = " [" + strings.ToUpper(l.Flag) + "]"
+				}
+				b.WriteString(fmt.Sprintf("- %s: %.2f %s%s (%s)\n",
+					lname, l.Value, unit, flag, l.CollectedAt.Format("2006-01-02")))
+			}
+			b.WriteString("\n")
+		}
+
+		b.WriteString(s.buildHealthSummary(ctx, userID))
+		return b.String()
+
+	case "lab_category":
+		// Section-level chat: contextID is a category key like "cbc", "liver", "needs_attention"
+		var labs []struct {
+			LabName     *string   `db:"lab_name"`
+			LoincCode   *string   `db:"loinc_code"`
+			Value       float64   `db:"value"`
+			Unit        *string   `db:"unit"`
+			Flag        string    `db:"flag"`
+			CollectedAt time.Time `db:"collected_at"`
+		}
+
+		if contextID == "needs_attention" {
+			// All abnormal/flagged labs
+			_ = s.db.SelectContext(ctx, &labs,
+				`SELECT lab_name, loinc_code, value, unit, flag, collected_at
+				 FROM lab_results WHERE user_id = $1 AND flag != 'normal' AND flag != ''
+				 ORDER BY collected_at DESC LIMIT 30`, userID)
+		} else {
+			// All labs (we'll rely on the agent having the category label in the prompt)
+			_ = s.db.SelectContext(ctx, &labs,
+				`SELECT lab_name, loinc_code, value, unit, flag, collected_at
+				 FROM lab_results WHERE user_id = $1
+				 ORDER BY collected_at DESC`, userID)
+		}
+
+		if len(labs) == 0 {
+			return ""
+		}
+
+		var b strings.Builder
+		if contextID == "needs_attention" {
+			b.WriteString("The user wants to discuss ALL their flagged/abnormal lab results.\n\n")
+			b.WriteString(fmt.Sprintf("FLAGGED LAB RESULTS (%d):\n", len(labs)))
+		} else {
+			b.WriteString(fmt.Sprintf("The user wants to discuss their lab results in the \"%s\" category.\n\n", contextID))
+			b.WriteString("LAB RESULTS:\n")
+		}
+		for _, l := range labs {
+			name := "Unknown"
+			if l.LabName != nil {
+				name = *l.LabName
+			} else if l.LoincCode != nil {
+				name = *l.LoincCode
+			}
+			unit := ""
+			if l.Unit != nil {
+				unit = *l.Unit
+			}
+			flag := ""
+			if l.Flag != "normal" && l.Flag != "" {
+				flag = " [" + strings.ToUpper(l.Flag) + "]"
+			}
+			b.WriteString(fmt.Sprintf("- %s: %.2f %s%s (%s)\n",
+				name, l.Value, unit, flag, l.CollectedAt.Format("2006-01-02")))
+		}
+		b.WriteString("\n")
+		b.WriteString(s.buildHealthSummary(ctx, userID))
+		return b.String()
+
 	case "visit":
-		// Visit context is handled by the orchestrator's context assembler via visit ID
-		return ""
+		id, err := uuid.Parse(contextID)
+		if err != nil {
+			return ""
+		}
+		var visit struct {
+			DoctorName *string `db:"doctor_name"`
+			Specialty  *string `db:"specialty"`
+			Reason     *string `db:"reason"`
+			Status     string  `db:"status"`
+			VisitDate  *time.Time `db:"visit_date"`
+		}
+		err = s.db.GetContext(ctx, &visit,
+			`SELECT doctor_name, specialty, reason, status, visit_date
+			 FROM visits WHERE id = $1 AND user_id = $2`, id, userID)
+		if err != nil {
+			return ""
+		}
+
+		var b strings.Builder
+		b.WriteString("The user is preparing for a doctor visit.\n\n")
+		b.WriteString("VISIT DETAILS:\n")
+		if visit.DoctorName != nil {
+			b.WriteString(fmt.Sprintf("- Doctor: %s\n", *visit.DoctorName))
+		}
+		if visit.Specialty != nil {
+			b.WriteString(fmt.Sprintf("- Specialty: %s\n", *visit.Specialty))
+		}
+		if visit.VisitDate != nil {
+			b.WriteString(fmt.Sprintf("- Date: %s\n", visit.VisitDate.Format("2006-01-02")))
+		}
+		if visit.Reason != nil && *visit.Reason != "" {
+			b.WriteString(fmt.Sprintf("- Reason: %s\n", *visit.Reason))
+		}
+		b.WriteString(fmt.Sprintf("- Status: %s\n\n", visit.Status))
+
+		// Include docs linked to this visit
+		type visitDoc struct {
+			FileName    *string `db:"file_name"`
+			ParseStatus string  `db:"parse_status"`
+		}
+		var visitDocs []visitDoc
+		_ = s.db.SelectContext(ctx, &visitDocs,
+			`SELECT file_name, parse_status FROM documents WHERE visit_id = $1 AND user_id = $2`, id, userID)
+		if len(visitDocs) > 0 {
+			b.WriteString(fmt.Sprintf("DOCUMENTS LINKED TO THIS VISIT (%d):\n", len(visitDocs)))
+			for _, d := range visitDocs {
+				name := "Document"
+				if d.FileName != nil {
+					name = *d.FileName
+				}
+				b.WriteString(fmt.Sprintf("- %s (status: %s)\n", name, d.ParseStatus))
+			}
+			b.WriteString("\n")
+		}
+
+		b.WriteString(s.buildHealthSummary(ctx, userID))
+		return b.String()
 
 	default:
 		return ""
@@ -286,6 +502,8 @@ func (s *Server) buildRichContext(ctx context.Context, userID uuid.UUID, context
 // One human, one story: the agent sees the full timeline of this person's health.
 func (s *Server) buildHealthSummary(ctx context.Context, userID uuid.UUID) string {
 	var b strings.Builder
+
+	b.WriteString(fmt.Sprintf("TODAY: %s\n\n", time.Now().Format("2006-01-02")))
 
 	// Abnormal labs
 	type labRow struct {

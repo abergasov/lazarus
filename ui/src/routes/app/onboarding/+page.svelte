@@ -9,6 +9,16 @@
   let extractedModel = $state<PatientModel | null>(null);
   let editDemo = $state<Demographics>({});
 
+  function numVal(field: keyof Demographics): string {
+    const v = editDemo[field];
+    return v != null && v !== 0 ? String(v) : '';
+  }
+
+  function setNum(field: keyof Demographics, e: Event) {
+    const v = (e.target as HTMLInputElement).value;
+    (editDemo as any)[field] = v === '' ? undefined : Number(v);
+  }
+
   async function handleUpload(files: File[]) {
     step = 'processing';
     processingSteps = [{ step: 'upload', status: 'running', label: `Uploading ${files.length} document(s)...` }];
@@ -106,7 +116,7 @@
   {:else if step === 'confirm'}
     <div class="confirm">
       <h1>Confirm your profile</h1>
-      <p class="desc">We extracted the following from your document. Edit anything that doesn't look right.</p>
+      <p class="desc">We extracted the following from your documents. Edit anything that doesn't look right.</p>
 
       <div class="form-section">
         <h2>Demographics</h2>
@@ -121,7 +131,7 @@
           </label>
           <label>
             <span>Age</span>
-            <input type="number" bind:value={editDemo.age} placeholder="—" />
+            <input type="text" inputmode="numeric" value={numVal('age')} oninput={(e) => setNum('age', e)} placeholder="—" />
           </label>
           <label>
             <span>Ethnicity</span>
@@ -136,21 +146,23 @@
           </label>
           <label>
             <span>Height (cm)</span>
-            <input type="number" bind:value={editDemo.height_cm} placeholder="—" />
+            <input type="text" inputmode="numeric" value={numVal('height_cm')} oninput={(e) => setNum('height_cm', e)} placeholder="—" />
           </label>
           <label>
             <span>Weight (kg)</span>
-            <input type="number" bind:value={editDemo.weight_kg} placeholder="—" />
-          </label>
-          <label>
-            <span>Blood Pressure</span>
-            <div class="bp-row">
-              <input type="number" bind:value={editDemo.blood_pressure_systolic} placeholder="Sys" />
-              <span class="bp-slash">/</span>
-              <input type="number" bind:value={editDemo.blood_pressure_diastolic} placeholder="Dia" />
-            </div>
+            <input type="text" inputmode="numeric" value={numVal('weight_kg')} oninput={(e) => setNum('weight_kg', e)} placeholder="—" />
           </label>
         </div>
+
+        <div class="bp-field">
+          <span class="field-label">Blood Pressure</span>
+          <div class="bp-row">
+            <input type="text" inputmode="numeric" value={numVal('blood_pressure_systolic')} oninput={(e) => setNum('blood_pressure_systolic', e)} placeholder="Systolic" />
+            <span class="bp-slash">/</span>
+            <input type="text" inputmode="numeric" value={numVal('blood_pressure_diastolic')} oninput={(e) => setNum('blood_pressure_diastolic', e)} placeholder="Diastolic" />
+          </div>
+        </div>
+
         <label class="toggle-row">
           <span>Smoker</span>
           <input type="checkbox" bind:checked={editDemo.smoker} class="toggle" />
@@ -188,7 +200,7 @@
 <style>
   .onboarding {
     min-height: 100svh; display: flex; flex-direction: column; align-items: center;
-    justify-content: center; padding: 40px 20px; max-width: 520px; margin: 0 auto;
+    justify-content: center; padding: 40px 20px; max-width: 600px; margin: 0 auto;
   }
   .welcome, .processing, .confirm, .done-state { width: 100%; text-align: center; }
   .logo { margin-bottom: 24px; }
@@ -210,27 +222,40 @@
   .confirm { text-align: left; }
   .confirm h1 { text-align: center; }
   .confirm .desc { text-align: center; }
-  .form-section { background: var(--bg2); border-radius: var(--radius); padding: 16px; margin-bottom: 16px; }
-  .form-section h2 { font-size: 15px; font-weight: 600; margin-bottom: 12px; color: var(--text2); text-transform: uppercase; letter-spacing: 0.5px; }
-  .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px; }
-  .form-grid label, .toggle-row { display: flex; flex-direction: column; gap: 4px; }
-  .form-grid label span, .toggle-row span { font-size: 12px; color: var(--text3); font-weight: 500; }
+  .form-section { background: var(--bg2); border-radius: var(--radius); padding: 20px; margin-bottom: 16px; }
+  .form-section h2 { font-size: 13px; font-weight: 600; margin-bottom: 16px; color: var(--text3); text-transform: uppercase; letter-spacing: 0.5px; }
+
+  .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px; }
+  .form-grid label { display: flex; flex-direction: column; gap: 6px; }
+  .form-grid label span { font-size: 13px; color: var(--text2); font-weight: 500; }
   .form-grid input, .form-grid select {
-    padding: 10px 12px; border-radius: 10px; border: 1px solid var(--separator);
-    font-size: 15px; background: var(--bg); outline: none;
+    padding: 12px 14px; border-radius: 10px; border: 1px solid var(--separator);
+    font-size: 15px; background: var(--bg); outline: none; color: var(--text);
+    transition: border-color 0.2s;
   }
   .form-grid input:focus, .form-grid select:focus { border-color: var(--blue); }
-  .bp-row { display: flex; align-items: center; gap: 4px; }
-  .bp-row input { flex: 1; padding: 10px 8px; border-radius: 10px; border: 1px solid var(--separator); font-size: 15px; background: var(--bg); outline: none; text-align: center; }
+  .form-grid input::placeholder { color: var(--text3); }
+
+  .bp-field { margin-bottom: 16px; }
+  .field-label { font-size: 13px; color: var(--text2); font-weight: 500; display: block; margin-bottom: 6px; }
+  .bp-row { display: flex; align-items: center; gap: 8px; }
+  .bp-row input {
+    flex: 1; padding: 12px 14px; border-radius: 10px; border: 1px solid var(--separator);
+    font-size: 15px; background: var(--bg); outline: none; color: var(--text);
+    text-align: center; transition: border-color 0.2s;
+  }
   .bp-row input:focus { border-color: var(--blue); }
-  .bp-slash { font-size: 16px; color: var(--text3); }
-  .toggle-row { flex-direction: row; align-items: center; justify-content: space-between; padding: 8px 0; }
-  .toggle { width: 48px; height: 28px; appearance: none; background: var(--separator); border-radius: 14px; position: relative; cursor: pointer; transition: background 0.2s; }
+  .bp-row input::placeholder { color: var(--text3); }
+  .bp-slash { font-size: 20px; color: var(--text3); font-weight: 300; }
+
+  .toggle-row { display: flex; align-items: center; justify-content: space-between; padding: 10px 0; }
+  .toggle-row span { font-size: 15px; color: var(--text); font-weight: 500; }
+  .toggle { width: 48px; height: 28px; appearance: none; background: var(--separator); border-radius: 14px; position: relative; cursor: pointer; transition: background 0.2s; flex-shrink: 0; }
   .toggle:checked { background: var(--green); }
   .toggle::after { content: ''; position: absolute; width: 24px; height: 24px; background: white; border-radius: 50%; top: 2px; left: 2px; transition: transform 0.2s; box-shadow: 0 1px 3px rgba(0,0,0,0.15); }
   .toggle:checked::after { transform: translateX(20px); }
 
-  .cond-row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--separator); }
+  .cond-row { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid var(--separator); }
   .cond-row:last-child { border-bottom: none; }
   .cond-name { font-size: 15px; font-weight: 500; }
   .cond-status { font-size: 13px; color: var(--text3); }
@@ -238,7 +263,7 @@
   .confirm-btn {
     all: unset; cursor: pointer; display: block; width: 100%; padding: 16px; border-radius: 14px;
     background: var(--blue); color: white; font-size: 17px; font-weight: 600; text-align: center;
-    margin-top: 24px; transition: opacity 0.15s;
+    margin-top: 24px; transition: opacity 0.15s; box-sizing: border-box;
   }
   .confirm-btn:hover { opacity: 0.9; }
 

@@ -6,26 +6,32 @@ import (
 	"fmt"
 	"log/slog"
 	"runtime/debug"
+	"strings"
 	"sync"
+	"time"
 
 	"lazarus/internal/agent/tools"
 	"lazarus/internal/entities"
 	"lazarus/internal/provider"
+
+	"github.com/jmoiron/sqlx"
 )
 
-const maxIterations = 5
+const maxIterations = 8
 
 type agentBase struct {
 	prov     provider.Provider
 	model    string
 	registry *tools.Registry
+	auditDB  *sqlx.DB
 }
 
 type toolExecResult struct {
-	CallID string
-	Name   string
-	Result any
-	Error  error
+	CallID     string
+	Name       string
+	Result     any
+	Error      error
+	DurationMs int
 }
 
 func (a *agentBase) runLoop(
@@ -36,6 +42,7 @@ func (a *agentBase) runLoop(
 	systemPrompt string,
 	userMsg string,
 	userID string,
+	visitID string,
 	out chan<- entities.ClientEvent,
 ) error {
 	availableTools := a.registry.ForPhase(phase)
@@ -50,15 +57,26 @@ func (a *agentBase) runLoop(
 
 	messages := append(session.GetMessages(), provider.Message{Role: "user", Content: userMsg})
 
-	uc := &tools.UserContext{Phase: phase, UserID: userID}
+	// Inject today's date into all system prompts
+	resolvedPrompt := strings.ReplaceAll(systemPrompt, "{{TODAY}}", time.Now().Format("2006-01-02"))
+
+	uc := &tools.UserContext{Phase: phase, UserID: userID, VisitID: visitID}
 
 	for iteration := 0; iteration < maxIterations; iteration++ {
+		// Warn the LLM when approaching iteration limit
+		iterationSystem := resolvedPrompt + "\n\n" + assembledCtx.GetSystemPromptContext()
+		if iteration >= maxIterations-2 {
+			iterationSystem += fmt.Sprintf(
+				"\n\n⚠️ ITERATION WARNING: You are on iteration %d of %d. Wrap up your analysis and provide a final response. Do NOT call more tools unless absolutely critical for patient safety.",
+				iteration+1, maxIterations)
+		}
+
 		req := &provider.Request{
 			Model:     a.model,
-			System:    systemPrompt + "\n\n" + assembledCtx.GetSystemPromptContext(),
+			System:    iterationSystem,
 			Messages:  messages,
 			Tools:     toolDefs,
-			MaxTokens: 2048,
+			MaxTokens: 4096,
 		}
 
 		eventCh, err := a.prov.Stream(ctx, req)
@@ -92,6 +110,20 @@ func (a *agentBase) runLoop(
 			}
 		}
 
+		// Apply output safety filter before sending to user
+		if assistantText != "" {
+			if filtered := filterUnsafeOutput(assistantText); filtered != assistantText {
+				slog.Warn("output filter modified response",
+					"phase", phase,
+					"user_id", userID,
+					"iteration", iteration,
+					"original_len", len(assistantText),
+					"filtered_len", len(filtered),
+				)
+				assistantText = filtered
+			}
+		}
+
 		if len(pendingToolCalls) == 0 {
 			break
 		}
@@ -109,8 +141,10 @@ func (a *agentBase) runLoop(
 						results[idx] = toolExecResult{CallID: call.ID, Name: call.Name, Error: fmt.Errorf("tool %s panicked: %v", call.Name, r)}
 					}
 				}()
+				start := time.Now()
 				result, err := a.registry.Execute(ctx, call.Name, call.Args, uc)
-				results[idx] = toolExecResult{CallID: call.ID, Name: call.Name, Result: result, Error: err}
+				durationMs := int(time.Since(start).Milliseconds())
+				results[idx] = toolExecResult{CallID: call.ID, Name: call.Name, Result: result, Error: err, DurationMs: durationMs}
 				success := err == nil
 				summary := a.registry.Summary(call.Name, result)
 				out <- entities.ClientEvent{
@@ -124,6 +158,9 @@ func (a *agentBase) runLoop(
 			}(i, tc)
 		}
 		wg.Wait()
+
+		// Audit log all tool calls
+		a.logToolCalls(ctx, userID, visitID, phase, iteration, pendingToolCalls, results)
 
 		// Append assistant turn + tool results
 		assistantMsg := provider.Message{Role: "assistant", Content: assistantText}
@@ -148,6 +185,33 @@ func (a *agentBase) runLoop(
 	}
 
 	return nil
+}
+
+// logToolCalls persists tool execution details for audit trail
+func (a *agentBase) logToolCalls(ctx context.Context, userID, visitID, phase string, iteration int, calls []provider.ToolCall, results []toolExecResult) {
+	if a.auditDB == nil {
+		return
+	}
+	for i, call := range calls {
+		result := results[i]
+		resultJSON, _ := json.Marshal(result.Result)
+		if result.Error != nil {
+			resultJSON, _ = json.Marshal(map[string]string{"error": result.Error.Error()})
+		}
+
+		var visitIDPtr *string
+		if visitID != "" {
+			visitIDPtr = &visitID
+		}
+
+		_, err := a.auditDB.ExecContext(ctx, `
+			INSERT INTO agent_audit_log (user_id, visit_id, phase, iteration, tool_name, tool_args, tool_result, is_error, duration_ms)
+			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+		`, userID, visitIDPtr, phase, iteration, call.Name, call.Args, resultJSON, result.Error != nil, result.DurationMs)
+		if err != nil {
+			slog.Error("failed to write audit log", "error", err, "tool", call.Name)
+		}
+	}
 }
 
 // sessionAdapter wraps Session to satisfy the runLoop interface

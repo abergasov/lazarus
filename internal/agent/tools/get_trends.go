@@ -24,7 +24,7 @@ func getTrendsTool(deps *Deps) *Tool {
 	return &Tool{
 		Name:        "get_trends",
 		Description: "Calculate trend direction and significance for all lab values with multiple measurements. Identifies worsening or improving patterns.",
-		Phases:      []string{entities.PhasePreparing, entities.PhaseDuring},
+		Phases:      []string{entities.PhasePreparing, entities.PhaseDuring, entities.PhaseCompleted},
 		Schema:      schema,
 		Execute: func(ctx context.Context, args json.RawMessage, uc *UserContext) (any, error) {
 			var a getTrendsArgs

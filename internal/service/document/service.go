@@ -81,12 +81,46 @@ func (s *Service) Upload(ctx context.Context, userID uuid.UUID, visitIDStr strin
 	return doc, nil
 }
 
+func (s *Service) Get(ctx context.Context, id uuid.UUID, userID uuid.UUID) (*entities.Document, error) {
+	doc, err := s.docRepo.Get(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	if doc.UserID != userID {
+		return nil, fmt.Errorf("not found")
+	}
+	return doc, nil
+}
+
 func (s *Service) ListByUser(ctx context.Context, userID uuid.UUID) ([]entities.Document, error) {
 	return s.docRepo.ListByUser(ctx, userID)
 }
 
 func (s *Service) Delete(ctx context.Context, id uuid.UUID, userID uuid.UUID) error {
 	return s.docRepo.Delete(ctx, id, userID)
+}
+
+func (s *Service) DownloadFile(ctx context.Context, id uuid.UUID, userID uuid.UUID) (io.ReadCloser, string, string, error) {
+	doc, err := s.docRepo.Get(ctx, id)
+	if err != nil {
+		return nil, "", "", err
+	}
+	if doc.UserID != userID {
+		return nil, "", "", fmt.Errorf("forbidden")
+	}
+	reader, err := s.bucket.Download(ctx, doc.StorageKey)
+	if err != nil {
+		return nil, "", "", err
+	}
+	mime := "application/octet-stream"
+	if doc.MimeType != nil {
+		mime = *doc.MimeType
+	}
+	name := "document"
+	if doc.FileName != nil {
+		name = *doc.FileName
+	}
+	return reader, mime, name, nil
 }
 
 // ReParsePending re-parses all documents stuck in pending status (e.g. after a failed parse).

@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"time"
 
@@ -60,6 +61,33 @@ func (r *VisitRepo) UpdatePlan(ctx context.Context, id string, planJSON []byte) 
 	_, err := r.db.ExecContext(ctx,
 		`UPDATE visits SET plan_json = $1, updated_at = NOW() WHERE id = $2`,
 		planJSON, id)
+	return err
+}
+
+func (r *VisitRepo) UpdateOutcome(ctx context.Context, id string, outcomeJSON []byte) error {
+	_, err := r.db.ExecContext(ctx,
+		`UPDATE visits SET outcome_json = $1, updated_at = NOW() WHERE id = $2`,
+		outcomeJSON, id)
+	return err
+}
+
+func (r *VisitRepo) AppendNote(ctx context.Context, id string, note entities.VisitNote) error {
+	noteJSON, err := json.Marshal(note)
+	if err != nil {
+		return err
+	}
+	_, err = r.db.ExecContext(ctx,
+		`UPDATE visits SET notes_json = COALESCE(notes_json, '[]'::jsonb) || $1::jsonb, updated_at = NOW() WHERE id = $2`,
+		noteJSON, id)
+	return err
+}
+
+func (r *VisitRepo) Delete(ctx context.Context, id string) error {
+	// Clean up related data first
+	_, _ = r.db.ExecContext(ctx, `DELETE FROM agent_sessions WHERE visit_id = $1`, id)
+	_, _ = r.db.ExecContext(ctx, `UPDATE documents SET visit_id = NULL WHERE visit_id = $1`, id)
+	_, _ = r.db.ExecContext(ctx, `DELETE FROM conversations WHERE context_type = 'visit' AND context_id = $1`, id)
+	_, err := r.db.ExecContext(ctx, `DELETE FROM visits WHERE id = $1`, id)
 	return err
 }
 

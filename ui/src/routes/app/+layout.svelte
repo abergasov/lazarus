@@ -1,9 +1,19 @@
 <script lang="ts">
   import { page } from '$app/stores';
   import { goto } from '$app/navigation';
+  import { browser } from '$app/environment';
   import { logout } from '$lib/api';
 
   let { children, data } = $props();
+
+  let collapsed = $state(
+    browser ? (localStorage.getItem('sidebar-collapsed') ?? 'true') === 'true' : true
+  );
+
+  function toggleSidebar() {
+    collapsed = !collapsed;
+    if (browser) localStorage.setItem('sidebar-collapsed', String(collapsed));
+  }
 
   const nav = [
     { href: '/app',         label: 'Home',    exact: true },
@@ -35,17 +45,28 @@
 {:else}
   <div class="shell">
     <!-- Desktop Sidebar -->
-    <aside class="sidebar">
-      <a href="/app" class="brand">
-        <div class="brand-icon">
-          <svg viewBox="0 0 32 32" fill="none" width="32" height="32"><rect width="32" height="32" rx="8" fill="#0D9488"/><path d="M16 8C11.6 8 8 11.6 8 16s3.6 8 8 8 8-3.6 8-8-3.6-8-8-8zm0 3a1 1 0 1 1 0 2 1 1 0 0 1 0-2zm-.5 4h1v6h-1v-6z" fill="white"/></svg>
-        </div>
-        <span class="brand-name">MedHelp</span>
-      </a>
+    <aside class="sidebar" class:collapsed>
+      <div class="sidebar-top">
+        <a href="/app" class="brand">
+          <div class="brand-icon">
+            <svg viewBox="0 0 32 32" fill="none" width="32" height="32"><rect width="32" height="32" rx="8" fill="#0D9488"/><path d="M16 8C11.6 8 8 11.6 8 16s3.6 8 8 8 8-3.6 8-8-3.6-8-8-8zm0 3a1 1 0 1 1 0 2 1 1 0 0 1 0-2zm-.5 4h1v6h-1v-6z" fill="white"/></svg>
+          </div>
+          {#if !collapsed}<span class="brand-name">MedHelp</span>{/if}
+        </a>
+        <button class="collapse-toggle" onclick={toggleSidebar} aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            {#if collapsed}
+              <polyline points="9 18 15 12 9 6"/>
+            {:else}
+              <polyline points="15 18 9 12 15 6"/>
+            {/if}
+          </svg>
+        </button>
+      </div>
 
       <nav class="sidebar-nav">
         {#each nav as n}
-          <a href={n.href} class="nav-item" class:active={active(n)}>
+          <a href={n.href} class="nav-item" class:active={active(n)} title={collapsed ? n.label : undefined}>
             {#if n.label === 'Home'}
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
             {:else if n.label === 'Records'}
@@ -53,26 +74,37 @@
             {:else}
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
             {/if}
-            <span>{n.label}</span>
+            {#if !collapsed}<span>{n.label}</span>{/if}
           </a>
         {/each}
       </nav>
 
       <div class="sidebar-footer">
+        {#if !collapsed}
+          <p class="disclaimer">AI can make mistakes. MedHelp helps you talk to doctors — it does not provide medical advice.</p>
+        {/if}
         {#if data?.me}
           <div class="user-row">
             <div class="avatar">{(data.me.display_name || data.me.email || 'U')[0].toUpperCase()}</div>
-            <div class="user-info">
-              <div class="user-name">{data.me.display_name ?? data.me.email}</div>
-            </div>
+            {#if !collapsed}
+              <div class="user-info">
+                <div class="user-name">{data.me.display_name ?? data.me.email}</div>
+              </div>
+            {/if}
           </div>
         {/if}
-        <button class="logout-btn" onclick={doLogout}>Sign out</button>
+        <button class="logout-btn" onclick={doLogout} title={collapsed ? 'Sign out' : undefined}>
+          {#if collapsed}
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+          {:else}
+            Sign out
+          {/if}
+        </button>
       </div>
     </aside>
 
     <!-- Main content -->
-    <main class="content">
+    <main class="content" class:content-collapsed={collapsed}>
       {@render children()}
     </main>
 
@@ -105,7 +137,7 @@
     --blue: #0D9488; --red: #DC2626; --green: #34C759; --orange: #FF9500; --yellow: #FFCC00;
     --bg: #F2F2F7; --bg2: #FFFFFF; --separator: #E5E5EA;
     --text: #1C1C1E; --text2: #636366; --text3: #AEAEB2;
-    --sidebar-w: 220px; --tabbar-h: 56px; --radius: 14px;
+    --sidebar-w: 220px; --sidebar-collapsed-w: 64px; --tabbar-h: 56px; --radius: 14px;
   }
 
   .fullscreen { min-height: 100svh; }
@@ -115,11 +147,24 @@
   .sidebar {
     width: var(--sidebar-w); background: rgba(255,255,255,0.85);
     backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
-    border-right: 1px solid var(--separator); display: flex; flex-direction: column;
+    box-shadow: 1px 0 4px rgba(0,0,0,0.06); display: flex; flex-direction: column;
     padding: 20px 12px; position: fixed; top: 0; left: 0; height: 100svh; z-index: 100;
+    transition: width 200ms ease;
+    overflow: hidden;
   }
+  .sidebar.collapsed { width: var(--sidebar-collapsed-w); padding: 20px 8px; }
 
-  .brand { display: flex; align-items: center; gap: 10px; padding: 4px 8px 24px; text-decoration: none; color: var(--text); }
+  .sidebar-top { display: flex; align-items: center; justify-content: space-between; padding-bottom: 16px; }
+  .sidebar.collapsed .sidebar-top { justify-content: center; flex-direction: column; gap: 8px; }
+
+  .collapse-toggle {
+    all: unset; cursor: pointer; display: flex; align-items: center; justify-content: center;
+    width: 28px; height: 28px; border-radius: 8px; color: var(--text3);
+    transition: background 0.15s, color 0.15s; flex-shrink: 0;
+  }
+  .collapse-toggle:hover { background: var(--bg); color: var(--text); }
+
+  .brand { display: flex; align-items: center; gap: 10px; text-decoration: none; color: var(--text); white-space: nowrap; }
   .brand-name { font-size: 20px; font-weight: 700; letter-spacing: -0.5px; }
 
   .sidebar-nav { flex: 1; display: flex; flex-direction: column; gap: 2px; }
@@ -127,26 +172,34 @@
   .nav-item {
     display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 10px;
     text-decoration: none; color: var(--text2); font-size: 15px; font-weight: 500;
-    transition: background 0.15s, color 0.15s;
+    transition: background 0.15s, color 0.15s; white-space: nowrap;
   }
+  .sidebar.collapsed .nav-item { justify-content: center; padding: 10px; }
   .nav-item:hover { background: var(--bg); color: var(--text); }
   .nav-item.active { background: rgba(13,148,136,0.1); color: var(--blue); }
 
   .sidebar-footer { border-top: 1px solid var(--separator); padding-top: 16px; display: flex; flex-direction: column; gap: 8px; }
+  .disclaimer { font-size: 10px; color: var(--text3); line-height: 1.4; padding: 0 8px 4px; }
   .user-row { display: flex; align-items: center; gap: 10px; padding: 4px 8px; }
+  .sidebar.collapsed .user-row { justify-content: center; padding: 4px 0; }
   .avatar {
     width: 34px; height: 34px; border-radius: 50%; background: var(--blue); color: white;
     display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 600;
+    flex-shrink: 0;
   }
   .user-info { flex: 1; min-width: 0; }
   .user-name { font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .logout-btn {
-    all: unset; cursor: pointer; display: block; width: 100%; padding: 9px 12px; border-radius: 10px;
+    all: unset; cursor: pointer; display: flex; align-items: center; justify-content: center;
+    width: 100%; padding: 9px 12px; border-radius: 10px;
     font-size: 14px; color: var(--red); font-weight: 500; transition: background 0.15s;
+    white-space: nowrap;
   }
+  .sidebar.collapsed .logout-btn { padding: 9px; }
   .logout-btn:hover { background: rgba(255,59,48,0.08); }
 
-  .content { flex: 1; margin-left: var(--sidebar-w); min-height: 100svh; }
+  .content { flex: 1; margin-left: var(--sidebar-w); min-height: 100svh; transition: margin-left 200ms ease; }
+  .content.content-collapsed { margin-left: var(--sidebar-collapsed-w); }
 
   .tabbar {
     display: none; position: fixed; bottom: 0; left: 0; right: 0;
@@ -163,7 +216,7 @@
 
   @media (max-width: 768px) {
     .sidebar { display: none; }
-    .content { margin-left: 0; padding-bottom: calc(var(--tabbar-h) + env(safe-area-inset-bottom)); }
+    .content, .content.content-collapsed { margin-left: 0; padding-bottom: calc(var(--tabbar-h) + env(safe-area-inset-bottom)); }
     .tabbar { display: flex; }
   }
 </style>

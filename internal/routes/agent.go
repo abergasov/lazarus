@@ -1,6 +1,7 @@
 package routes
 
 import (
+	"bufio"
 	"encoding/binary"
 
 	"github.com/gofiber/fiber/v2"
@@ -38,14 +39,20 @@ func (s *Server) handleAgentStream(c *fiber.Ctx, userIDInt int64) error {
 		return c.Status(500).JSON(fiber.Map{"error": err.Error()})
 	}
 
-	writer := agent.NewStreamWriter(c)
+	c.Set("Content-Type", "text/event-stream")
+	c.Set("Cache-Control", "no-cache")
+	c.Set("Connection", "keep-alive")
+	c.Set("X-Accel-Buffering", "no")
 	c.Status(200)
-	for ev := range eventCh {
-		if err := writer.Write(ev); err != nil {
-			break
+
+	c.Context().SetBodyStreamWriter(func(w *bufio.Writer) {
+		writer := agent.NewBufStreamWriter(w)
+		for ev := range eventCh {
+			if err := writer.Write(ev); err != nil {
+				break
+			}
 		}
-		writer.Flush()
-	}
+	})
 	return nil
 }
 
