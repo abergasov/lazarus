@@ -201,6 +201,7 @@
   .onboarding {
     min-height: 100svh; display: flex; flex-direction: column; align-items: center;
     justify-content: center; padding: 40px 20px; max-width: 600px; margin: 0 auto;
+    box-sizing: border-box;
   }
   .welcome, .processing, .confirm, .done-state { width: 100%; text-align: center; }
   .logo { margin-bottom: 24px; }
@@ -208,6 +209,12 @@
   .desc { font-size: 16px; color: var(--text2); line-height: 1.5; margin-bottom: 32px; }
   .upload-area { margin-bottom: 16px; }
   .hint { font-size: 12px; color: var(--text3); }
+
+  @media (max-width: 480px) {
+    .onboarding { justify-content: flex-start; padding: 24px 16px; }
+    h1 { font-size: 24px; }
+    .desc { font-size: 14px; margin-bottom: 24px; }
+  }
 
   .steps { display: flex; flex-direction: column; gap: 16px; margin-top: 32px; text-align: left; }
   .proc-step { display: flex; align-items: center; gap: 12px; font-size: 15px; color: var(--text2); }
@@ -230,19 +237,32 @@
   .form-grid label span { font-size: 13px; color: var(--text2); font-weight: 500; }
   .form-grid input, .form-grid select {
     padding: 12px 14px; border-radius: 10px; border: 1px solid var(--separator);
-    font-size: 15px; background: var(--bg); outline: none; color: var(--text);
+    font-size: 16px; background: var(--bg); outline: none; color: var(--text);
     transition: border-color 0.2s;
+    -webkit-appearance: none; appearance: none;
+    box-sizing: border-box; width: 100%; min-width: 0;
+  }
+  .form-grid select {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23999' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+    background-repeat: no-repeat; background-position: right 12px center;
+    padding-right: 32px;
   }
   .form-grid input:focus, .form-grid select:focus { border-color: var(--blue); }
   .form-grid input::placeholder { color: var(--text3); }
+
+  @media (max-width: 480px) {
+    .form-grid { grid-template-columns: 1fr; gap: 12px; }
+    .form-section { padding: 16px; }
+  }
 
   .bp-field { margin-bottom: 16px; }
   .field-label { font-size: 13px; color: var(--text2); font-weight: 500; display: block; margin-bottom: 6px; }
   .bp-row { display: flex; align-items: center; gap: 8px; }
   .bp-row input {
     flex: 1; padding: 12px 14px; border-radius: 10px; border: 1px solid var(--separator);
-    font-size: 15px; background: var(--bg); outline: none; color: var(--text);
+    font-size: 16px; background: var(--bg); outline: none; color: var(--text);
     text-align: center; transition: border-color 0.2s;
+    box-sizing: border-box; min-width: 0;
   }
   .bp-row input:focus { border-color: var(--blue); }
   .bp-row input::placeholder { color: var(--text3); }
@@ -264,9 +284,15 @@
     all: unset; cursor: pointer; display: block; width: 100%; padding: 16px; border-radius: 14px;
     background: var(--blue); color: white; font-size: 17px; font-weight: 600; text-align: center;
     margin-top: 24px; transition: opacity 0.15s; box-sizing: border-box;
+    -webkit-tap-highlight-color: transparent;
   }
   .confirm-btn:hover { opacity: 0.9; }
+  .confirm-btn:active { opacity: 0.8; }
 
   .done-state { display: flex; flex-direction: column; align-items: center; gap: 16px; }
   .done-state p { color: var(--text2); font-size: 15px; }
+
+  @media (max-width: 480px) {
+    .confirm-btn { position: sticky; bottom: 16px; margin-top: 16px; }
+  }
 </style>

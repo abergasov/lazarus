@@ -655,11 +655,31 @@
     {/if}
 
   {:else if tab === 1}
-    <!-- Documents — Timeline + Categories -->
-    <UploadZone onupload={handleDocUpload} label="Drop documents here" />
+    <!-- ─── Documents ─── -->
     {#if docList.length === 0}
-      <div class="empty"><p>No documents uploaded yet.</p></div>
+      <div class="doc-empty">
+        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="var(--text3)" stroke-width="1"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+        <p>No documents yet</p>
+        <p class="hint">Upload lab results, prescriptions, or visit notes to build your medical timeline.</p>
+        <UploadZone onupload={handleDocUpload} label="Drop medical documents here" />
+      </div>
     {:else}
+      <!-- Summary strip -->
+      <div class="doc-summary">
+        <div class="doc-summary-stat">
+          <span class="doc-summary-num">{docList.length}</span>
+          <span class="doc-summary-lbl">documents</span>
+        </div>
+        <div class="doc-summary-stat">
+          <span class="doc-summary-num">{docCategories.length}</span>
+          <span class="doc-summary-lbl">categories</span>
+        </div>
+        <div class="doc-summary-stat">
+          <span class="doc-summary-num">{docList.filter(d => d.parse_status === 'done').length}</span>
+          <span class="doc-summary-lbl">processed</span>
+        </div>
+      </div>
+
       <div class="doc-controls">
         <div class="ld-toggle">
           <button class:active={docView === 'timeline'} onclick={() => { docView = 'timeline'; }}>Timeline</button>
@@ -668,17 +688,19 @@
         <div class="doc-controls-right">
           <button class="reparse-all-btn" onclick={reparseAll}>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
-            Re-process all
+            Re-process
           </button>
         </div>
       </div>
+
+      <UploadZone onupload={handleDocUpload} label="Upload more documents" />
 
       {#if docView === 'timeline'}
         <div class="tl">
           {#each docTimeline as group, i}
             <div class="tl-entry">
               <div class="tl-rail">
-                <div class="tl-dot"></div>
+                <div class="tl-dot doc-dot"></div>
                 {#if i < docTimeline.length - 1}<div class="tl-line"></div>{/if}
               </div>
               <div class="tl-content">
@@ -686,28 +708,39 @@
                 <div class="dtl-docs">
                   {#each group.docs as doc}
                     <div class="doc-card">
-                      <button class="doc-main" onclick={() => goto(`/app/documents/${doc.id}`)}>
-                        <span class="doc-cat-badge" style="background:{docCatMeta[doc.category]?.color ?? 'var(--text3)'}20;color:{docCatMeta[doc.category]?.color ?? 'var(--text3)'}">
-                          {docCatMeta[doc.category]?.label ?? doc.category}
-                        </span>
-                        <div class="doc-info">
-                          <span class="doc-name">{doc.summary || doc.file_name || 'Document'}</span>
-                          <span class="doc-detail">
-                            {#if doc.specialty}<span class="doc-specialty">{doc.specialty}</span>{/if}
-                            {doc.file_name || ''}
-                          </span>
+                      <button class="doc-card-main" onclick={() => goto(`/app/documents/${doc.id}`)}>
+                        <div class="doc-card-left">
+                          <div class="doc-card-icon" style="background:{docCatMeta[doc.category]?.color ?? 'var(--text3)'}12">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="{docCatMeta[doc.category]?.color ?? 'var(--text3)'}" stroke-width="1.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                          </div>
                         </div>
-                        <span class="doc-status" class:parsed={doc.parse_status === 'done'} class:pending={doc.parse_status === 'pending' || doc.parse_status === 'processing'}>
-                          {doc.parse_status === 'done' ? 'Processed' : doc.parse_status === 'pending' || doc.parse_status === 'processing' ? 'Processing...' : doc.parse_status}
-                        </span>
+                        <div class="doc-card-body">
+                          <span class="doc-card-title">{doc.summary || doc.file_name || 'Document'}</span>
+                          <div class="doc-card-meta">
+                            <span class="doc-card-type" style="color:{docCatMeta[doc.category]?.color ?? 'var(--text3)'}">{docCatMeta[doc.category]?.label ?? doc.category}</span>
+                            {#if doc.specialty}<span class="doc-card-sep">&middot;</span><span class="doc-card-spec">{doc.specialty}</span>{/if}
+                          </div>
+                        </div>
+                        <div class="doc-card-right">
+                          {#if doc.parse_status === 'done'}
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--green)" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+                          {:else if doc.parse_status === 'pending' || doc.parse_status === 'processing'}
+                            <div class="doc-mini-spinner"></div>
+                          {:else}
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--orange)" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                          {/if}
+                        </div>
                       </button>
-                      <div class="doc-actions-inline">
-                        <button class="doc-action" title="Re-process" onclick={(e) => { e.stopPropagation(); reparseDoc(doc.id); }}>
-                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
-                        </button>
-                        <button class="doc-action delete" title="Delete" onclick={(e) => { e.stopPropagation(); deleteDoc(doc.id); }}>
-                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
-                        </button>
+                      <div class="doc-card-actions">
+                        <span class="doc-card-filename">{doc.file_name || ''}</span>
+                        <div class="doc-card-btns">
+                          <button class="doc-action" title="Re-process" onclick={(e) => { e.stopPropagation(); reparseDoc(doc.id); }}>
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+                          </button>
+                          <button class="doc-action delete" title="Delete" onclick={(e) => { e.stopPropagation(); deleteDoc(doc.id); }}>
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                          </button>
+                        </div>
                       </div>
                     </div>
                   {/each}
@@ -719,32 +752,39 @@
       {:else}
         <!-- Category view -->
         {#each docCategories as cat}
-          <div class="doc-cat-group">
-            <div class="doc-cat-header">
-              <span class="doc-cat-badge" style="background:{cat.color}20;color:{cat.color}">{cat.label}</span>
-              <span class="doc-cat-count">{cat.docs.length}</span>
+          <div class="doc-type-group">
+            <div class="doc-type-header">
+              <div class="doc-type-badge" style="background:{cat.color}12;color:{cat.color}">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                {cat.label}
+              </div>
+              <span class="doc-type-count">{cat.docs.length} document{cat.docs.length !== 1 ? 's' : ''}</span>
             </div>
-            <div class="doc-list">
+            <div class="doc-type-list">
               {#each cat.docs as doc}
-                <div class="doc-row">
-                  <button class="doc-main" onclick={() => goto(`/app/documents/${doc.id}`)}>
-                    <div class="doc-info">
-                      <span class="doc-name">{doc.summary || doc.file_name || 'Document'}</span>
-                      <span class="doc-detail">
+                <div class="doc-type-row">
+                  <button class="doc-type-main" onclick={() => goto(`/app/documents/${doc.id}`)}>
+                    <div class="doc-type-info">
+                      <span class="doc-type-name">{doc.summary || doc.file_name || 'Document'}</span>
+                      <span class="doc-type-detail">
                         {formatDate(doc.document_date || doc.created_at)}
-                        {#if doc.specialty} · {doc.specialty}{/if}
+                        {#if doc.specialty} &middot; {doc.specialty}{/if}
                       </span>
                     </div>
-                    <span class="doc-status" class:parsed={doc.parse_status === 'done'} class:pending={doc.parse_status === 'pending' || doc.parse_status === 'processing'}>
-                      {doc.parse_status === 'done' ? 'Processed' : doc.parse_status === 'pending' || doc.parse_status === 'processing' ? 'Processing...' : doc.parse_status}
-                    </span>
+                    {#if doc.parse_status === 'done'}
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--green)" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+                    {:else if doc.parse_status === 'pending' || doc.parse_status === 'processing'}
+                      <div class="doc-mini-spinner"></div>
+                    {/if}
                   </button>
-                  <button class="doc-action" title="Re-process" onclick={(e) => { e.stopPropagation(); reparseDoc(doc.id); }}>
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
-                  </button>
-                  <button class="doc-action delete" title="Delete" onclick={(e) => { e.stopPropagation(); deleteDoc(doc.id); }}>
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
-                  </button>
+                  <div class="doc-type-btns">
+                    <button class="doc-action" title="Re-process" onclick={(e) => { e.stopPropagation(); reparseDoc(doc.id); }}>
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+                    </button>
+                    <button class="doc-action delete" title="Delete" onclick={(e) => { e.stopPropagation(); deleteDoc(doc.id); }}>
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                    </button>
+                  </div>
                 </div>
               {/each}
             </div>
@@ -1096,46 +1136,109 @@
   }
 
   /* ── Documents ── */
-  .doc-controls { display: flex; justify-content: space-between; align-items: center; margin: 8px 0; }
+  .doc-empty { text-align: center; padding: 40px 20px; }
+  .doc-empty svg { margin-bottom: 16px; opacity: 0.4; }
+  .doc-empty p { color: var(--text2); font-size: 15px; margin: 0 0 8px; }
+
+  .doc-summary {
+    display: flex; padding: 16px 20px;
+    background: var(--bg2); border-radius: var(--radius); margin-bottom: 12px;
+  }
+  .doc-summary-stat { display: flex; flex-direction: column; gap: 2px; flex: 1; }
+  .doc-summary-stat:not(:last-child) { border-right: 1px solid var(--separator); padding-right: 16px; margin-right: 16px; }
+  .doc-summary-num { font-size: 20px; font-weight: 700; font-variant-numeric: tabular-nums; color: var(--text); }
+  .doc-summary-lbl { font-size: 12px; color: var(--text3); }
+
+  .doc-controls { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
   .doc-controls-right { display: flex; gap: 8px; }
-  .doc-list { background: var(--bg2); border-radius: var(--radius); overflow: hidden; }
-  .doc-row { display: flex; align-items: center; border-bottom: 1px solid var(--separator); color: var(--text2); }
-  .doc-row:last-child { border-bottom: none; }
-  .doc-card {
-    background: var(--bg2); border-radius: var(--radius); overflow: hidden;
-    border: 1px solid var(--separator); margin-bottom: 6px;
-  }
-  .doc-card:last-child { margin-bottom: 0; }
-  .doc-main {
-    all: unset; cursor: pointer; flex: 1; display: flex; align-items: center; gap: 12px;
-    padding: 12px 16px; transition: background 0.15s;
-  }
-  .doc-main:hover { background: var(--bg); }
-  .doc-info { flex: 1; min-width: 0; }
-  .doc-name { font-size: 14px; font-weight: 500; color: var(--text); display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .doc-detail { font-size: 12px; color: var(--text3); display: block; margin-top: 2px; }
-  .doc-specialty { font-weight: 500; color: var(--text2); }
-  .doc-status { font-size: 12px; font-weight: 500; padding: 3px 8px; border-radius: 8px; white-space: nowrap; flex-shrink: 0; }
-  .doc-status.parsed { color: var(--green); background: rgba(52,199,89,0.1); }
-  .doc-status.pending { color: var(--orange); background: rgba(255,149,0,0.1); }
-  .doc-actions-inline { display: flex; gap: 2px; padding: 4px 8px; justify-content: flex-end; border-top: 1px solid var(--separator); }
-  .doc-cat-badge {
-    font-size: 11px; font-weight: 600; padding: 3px 8px; border-radius: 6px;
-    white-space: nowrap; flex-shrink: 0;
-  }
-  .doc-cat-group { margin-bottom: 16px; }
-  .doc-cat-header { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
-  .doc-cat-count { font-size: 12px; color: var(--text3); }
-  .dtl-date { font-size: 15px; font-weight: 600; margin-bottom: 8px; }
-  .dtl-docs { display: flex; flex-direction: column; gap: 0; }
   .reparse-all-btn {
     all: unset; cursor: pointer; display: flex; align-items: center; gap: 6px;
     font-size: 13px; font-weight: 500; color: var(--blue); padding: 6px 12px;
     border-radius: 8px; transition: background 0.15s;
   }
   .reparse-all-btn:hover { background: rgba(13,148,136,0.1); }
+
+  /* Timeline doc cards */
+  .doc-dot { background: var(--blue); box-shadow: 0 0 0 2px var(--blue); }
+  .dtl-date { font-size: 15px; font-weight: 600; margin-bottom: 8px; }
+  .dtl-docs { display: flex; flex-direction: column; gap: 6px; }
+  .doc-card {
+    background: var(--bg2); border-radius: 12px; overflow: hidden;
+    border: 1px solid rgba(0,0,0,0.06); transition: border-color 0.15s, box-shadow 0.15s;
+  }
+  .doc-card:hover { border-color: rgba(0,0,0,0.1); box-shadow: 0 2px 8px rgba(0,0,0,0.04); }
+  .doc-card-main {
+    all: unset; cursor: pointer; display: flex; align-items: center; gap: 12px;
+    padding: 14px 16px; width: 100%; box-sizing: border-box;
+    transition: background 0.15s;
+  }
+  .doc-card-main:hover { background: rgba(0,0,0,0.015); }
+  .doc-card-icon {
+    width: 40px; height: 40px; border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+  }
+  .doc-card-body { flex: 1; min-width: 0; }
+  .doc-card-title {
+    font-size: 14px; font-weight: 600; color: var(--text);
+    display: block; line-height: 1.3;
+    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+  }
+  .doc-card-meta { display: flex; align-items: center; gap: 4px; margin-top: 3px; }
+  .doc-card-type { font-size: 12px; font-weight: 600; }
+  .doc-card-sep { font-size: 12px; color: var(--text3); }
+  .doc-card-spec { font-size: 12px; color: var(--text3); text-transform: capitalize; }
+  .doc-card-right { flex-shrink: 0; display: flex; align-items: center; }
+  .doc-mini-spinner {
+    width: 14px; height: 14px; border: 2px solid var(--separator);
+    border-top-color: var(--blue); border-radius: 50%; animation: spin 0.8s linear infinite;
+  }
+  .doc-card-actions {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 6px 16px 6px 16px; border-top: 1px solid rgba(0,0,0,0.04);
+  }
+  .doc-card-filename {
+    font-size: 11px; color: var(--text3);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    max-width: 200px;
+  }
+  .doc-card-btns { display: flex; gap: 2px; }
+
+  /* Category view */
+  .doc-type-group { margin-bottom: 20px; }
+  .doc-type-header {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 8px; padding: 0 2px;
+  }
+  .doc-type-badge {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-size: 13px; font-weight: 600; padding: 4px 10px; border-radius: 8px;
+  }
+  .doc-type-count { font-size: 12px; color: var(--text3); }
+  .doc-type-list {
+    background: var(--bg2); border-radius: 12px; overflow: hidden;
+    border: 1px solid rgba(0,0,0,0.06);
+  }
+  .doc-type-row {
+    display: flex; align-items: center;
+    border-bottom: 1px solid rgba(0,0,0,0.04);
+  }
+  .doc-type-row:last-child { border-bottom: none; }
+  .doc-type-main {
+    all: unset; cursor: pointer; flex: 1; display: flex; align-items: center; gap: 10px;
+    padding: 14px 16px; transition: background 0.15s;
+  }
+  .doc-type-main:hover { background: rgba(0,0,0,0.015); }
+  .doc-type-info { flex: 1; min-width: 0; }
+  .doc-type-name {
+    font-size: 14px; font-weight: 500; color: var(--text);
+    display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .doc-type-detail { font-size: 12px; color: var(--text3); display: block; margin-top: 2px; }
+  .doc-type-btns { display: flex; gap: 2px; padding-right: 8px; }
+
   .doc-action {
-    all: unset; cursor: pointer; padding: 6px; border-radius: 6px;
+    all: unset; cursor: pointer; padding: 8px; border-radius: 8px;
     color: var(--text3); transition: color 0.15s, background 0.15s;
   }
   .doc-action:hover { color: var(--blue); background: rgba(13,148,136,0.08); }
@@ -1318,4 +1421,28 @@
   .q-urgency.critical { color: var(--red); background: rgba(255,59,48,0.1); }
   .q-single-assign { flex-shrink: 0; }
   .q-mini-select { max-width: 120px; font-size: 12px; }
+
+  /* ── Mobile responsive ── */
+  @media (max-width: 480px) {
+    .page { padding: 16px 12px 40px; }
+    h1 { font-size: 24px; }
+    .ld-summary { padding: 12px 14px; }
+    .ld-stat-num { font-size: 18px; }
+    .ld-controls { flex-direction: column; gap: 8px; }
+    .doc-summary { padding: 12px 14px; }
+    .doc-summary-num { font-size: 18px; }
+    .doc-controls { flex-wrap: wrap; gap: 8px; }
+    .doc-card-main { padding: 12px 14px; gap: 10px; }
+    .doc-card-icon { width: 36px; height: 36px; }
+    .add-row { flex-direction: column; }
+    .add-field.name, .add-field.dose, .add-field.freq { flex: unset; width: 100%; box-sizing: border-box; }
+    .add-row-bottom { flex-direction: column; gap: 10px; align-items: stretch; }
+    .add-actions { justify-content: flex-end; }
+    .q-assign-bar { flex-wrap: wrap; }
+    .q-visit-select { min-width: 0; }
+    .q-row { flex-wrap: wrap; gap: 8px; }
+    .q-single-assign { width: 100%; }
+    .q-mini-select { max-width: none; width: 100%; }
+    .ld-att-row { flex-wrap: wrap; gap: 8px; padding: 10px; }
+  }
 </style>
