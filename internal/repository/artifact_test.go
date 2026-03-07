@@ -16,12 +16,12 @@ func TestArtifactCrud(t *testing.T) {
 
 	// when
 	artifact := seed.NewArtifactBuilder(user.ID).Build()
-	artifactID, err := container.Repo.CreateArtifact(container.Ctx, artifact)
-	require.NoError(t, err)
+	artifactID := artifact.ID
+	require.NoError(t, container.Repo.CreateArtifact(container.Ctx, artifactID, artifact))
 	require.NotNil(t, artifact)
 
 	// then
-	artifactFromDB, err := container.Repo.GetArtifactByID(container.Ctx, artifactID)
+	artifactFromDB, err := container.Repo.GetArtifactByID(container.Ctx, artifact.OwnerID, artifactID)
 	require.NoError(t, err)
 	require.Equal(t, artifact.OriginalName, artifactFromDB.OriginalName)
 	require.Equal(t, artifact.SHA256Hex, artifactFromDB.SHA256Hex)
@@ -35,7 +35,7 @@ func TestArtifactCrud(t *testing.T) {
 		require.NoError(t, container.Repo.UpdateArtifactStatus(container.Ctx, artifactID, entities.ArtifactStatusClean))
 
 		// then
-		updatedArtifact, err := container.Repo.GetArtifactByID(container.Ctx, artifactID)
+		updatedArtifact, err := container.Repo.GetArtifactByID(container.Ctx, artifact.OwnerID, artifactID)
 		require.NoError(t, err)
 		require.Equal(t, entities.ArtifactStatusClean, updatedArtifact.Status)
 		t.Run("should trigger error for wrong status", func(t *testing.T) {
@@ -43,7 +43,7 @@ func TestArtifactCrud(t *testing.T) {
 			require.Error(t, container.Repo.UpdateArtifactStatus(container.Ctx, artifactID, "invalid_status"))
 
 			// then
-			updatedArtifact, err = container.Repo.GetArtifactByID(container.Ctx, artifactID)
+			updatedArtifact, err = container.Repo.GetArtifactByID(container.Ctx, artifact.OwnerID, artifactID)
 			require.NoError(t, err)
 			require.Equal(t, entities.ArtifactStatusClean, updatedArtifact.Status)
 		})

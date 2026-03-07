@@ -6,6 +6,7 @@ import (
 	"lazarus/internal/config"
 	"lazarus/internal/logger"
 	"lazarus/internal/repository"
+	"lazarus/internal/service/artifact_manager"
 	"lazarus/internal/service/authorization"
 	"lazarus/internal/service/user"
 	"lazarus/internal/storage/bucket"
@@ -28,8 +29,9 @@ type TestContainer struct {
 
 	Repo *repository.Repo
 
-	ServiceAuth *authorization.Service
-	ServiceUser *user.Service
+	ServiceAuth            *authorization.Service
+	ServiceUser            *user.Service
+	ServiceArtifactManager *artifact_manager.Service
 }
 
 func GetClean(t *testing.T) *TestContainer {
