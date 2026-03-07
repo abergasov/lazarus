@@ -18,7 +18,7 @@
       });
       if (r.ok) {
         window.history.replaceState({}, '', '/');
-        await goto('/app/visits');
+        await goto('/app');
         return;
       }
       error = 'Sign-in failed. Please try again.';
@@ -27,7 +27,7 @@
     // Check if already logged in
     const me = await fetch('/api/v1/user/me', { credentials: 'include' });
     if (me.ok) {
-      await goto('/app/visits');
+      await goto('/app');
       return;
     }
 
@@ -39,7 +39,7 @@
   <div class="hero">
     <div class="logo">
       <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <rect width="64" height="64" rx="14" fill="#007AFF"/>
+        <rect width="64" height="64" rx="14" fill="#0D9488"/>
         <path d="M32 16C23.163 16 16 23.163 16 32s7.163 16 16 16 16-7.163 16-16S40.837 16 32 16zm0 6a2 2 0 1 1 0 4 2 2 0 0 1 0-4zm-1 8h2v12h-2V30z" fill="white"/>
       </svg>
     </div>
@@ -85,7 +85,7 @@
   :global(body) {
     font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', Helvetica, Arial, sans-serif;
     -webkit-font-smoothing: antialiased;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: linear-gradient(135deg, #0D9488 0%, #115E59 100%);
     min-height: 100svh;
   }
 
@@ -112,7 +112,7 @@
     width: 72px;
     height: 72px;
     margin-bottom: 16px;
-    filter: drop-shadow(0 8px 16px rgba(0,122,255,0.4));
+    filter: drop-shadow(0 8px 16px rgba(13,148,136,0.4));
   }
 
   h1 {
@@ -152,7 +152,7 @@
   .error {
     background: #FFF2F0;
     border: 1px solid #FFCCC7;
-    color: #CF1322;
+    color: #DC2626;
     padding: 12px 16px;
     border-radius: 10px;
     font-size: 14px;
@@ -190,7 +190,7 @@
     width: 28px;
     height: 28px;
     border: 3px solid #E5E5EA;
-    border-top-color: #007AFF;
+    border-top-color: #0D9488;
     border-radius: 50%;
     animation: spin 0.8s linear infinite;
     margin: 0 auto 24px;

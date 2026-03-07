@@ -20,6 +20,7 @@ type AssembledContext struct {
 	RecentLabs          []entities.AnnotatedLab
 	Trends              []entities.TrendSummary
 	ActiveMeds          []entities.Medication
+	PastMeds            []entities.Medication
 	FlaggedInteractions []knowledge.DrugInteraction
 	Visit               *entities.Visit
 	Phase               string
@@ -79,9 +80,15 @@ func (a *Assembler) Build(ctx context.Context, session *Session) (*AssembledCont
 		return nil
 	})
 	g.Go(func() error {
-		meds, err := a.medRepo.ListActive(gctx, session.UserID)
+		allMeds, err := a.medRepo.ListAll(gctx, session.UserID)
 		if err == nil {
-			ac.ActiveMeds = meds
+			for _, m := range allMeds {
+				if m.IsActive {
+					ac.ActiveMeds = append(ac.ActiveMeds, m)
+				} else {
+					ac.PastMeds = append(ac.PastMeds, m)
+				}
+			}
 		}
 		return nil
 	})
@@ -112,8 +119,8 @@ func (a *Assembler) Build(ctx context.Context, session *Session) (*AssembledCont
 func extractRxCUIs(meds []entities.Medication) []string {
 	rxcuis := make([]string, 0, len(meds))
 	for _, m := range meds {
-		if m.RxCUI != "" {
-			rxcuis = append(rxcuis, m.RxCUI)
+		if m.RxCUI != nil && *m.RxCUI != "" {
+			rxcuis = append(rxcuis, *m.RxCUI)
 		}
 	}
 	return rxcuis
@@ -144,31 +151,118 @@ func renderContext(ac *AssembledContext) string {
 	if len(ac.ActiveMeds) > 0 {
 		b.WriteString("## Active Medications\n")
 		for _, m := range ac.ActiveMeds {
-			b.WriteString(fmt.Sprintf("- %s %s %s\n", m.Name, m.Dose, m.Frequency))
+			since := ""
+			if m.StartedAt != nil {
+				since = fmt.Sprintf(" (since %s)", m.StartedAt.Format("2006-01-02"))
+			}
+			b.WriteString(fmt.Sprintf("- %s %s %s%s\n", m.Name, m.Dose, m.Frequency, since))
+		}
+	}
+
+	if len(ac.PastMeds) > 0 {
+		b.WriteString("## Past Medications\n")
+		for _, m := range ac.PastMeds {
+			period := ""
+			if m.StartedAt != nil && m.EndedAt != nil {
+				period = fmt.Sprintf(" (%s → %s)", m.StartedAt.Format("2006-01-02"), m.EndedAt.Format("2006-01-02"))
+			} else if m.EndedAt != nil {
+				period = fmt.Sprintf(" (stopped %s)", m.EndedAt.Format("2006-01-02"))
+			}
+			b.WriteString(fmt.Sprintf("- %s %s %s%s\n", m.Name, m.Dose, m.Frequency, period))
 		}
 	}
 
 	if len(ac.FlaggedInteractions) > 0 {
-		b.WriteString("## ⚠️ Drug Interactions\n")
+		b.WriteString("## Drug Interactions\n")
 		for _, i := range ac.FlaggedInteractions {
 			b.WriteString(fmt.Sprintf("- [%s] %s + %s: %s\n", i.Severity, i.DrugAName, i.DrugBName, i.Description))
 		}
 	}
 
 	if len(ac.RecentLabs) > 0 {
-		abnormal := 0
+		// Separate abnormal/critical from normal — give the agent the actual values
+		var abnormals, normals []entities.AnnotatedLab
 		for _, l := range ac.RecentLabs {
-			if l.Flag != entities.FlagNormal {
-				abnormal++
+			if l.Flag != entities.FlagNormal && l.Flag != "" {
+				abnormals = append(abnormals, l)
+			} else {
+				normals = append(normals, l)
 			}
 		}
-		b.WriteString(fmt.Sprintf("## Recent Labs\n%d results (%d abnormal)\n", len(ac.RecentLabs), abnormal))
+
+		b.WriteString(fmt.Sprintf("## Lab Results (%d total)\n", len(ac.RecentLabs)))
+
+		if len(abnormals) > 0 {
+			b.WriteString(fmt.Sprintf("\n### Abnormal Results (%d)\n", len(abnormals)))
+			for _, l := range abnormals {
+				name := labDisplayName(l)
+				unit := ""
+				if l.Unit != nil {
+					unit = *l.Unit
+				}
+				b.WriteString(fmt.Sprintf("- **%s**: %.2f %s [%s] (%s)\n",
+					name, l.Value, unit, strings.ToUpper(l.Flag), l.CollectedAt.Format("2006-01-02")))
+			}
+		}
+
+		if len(normals) > 0 {
+			b.WriteString(fmt.Sprintf("\n### Normal Results (%d)\n", len(normals)))
+			// Group by name, show latest only to keep context manageable
+			seen := map[string]bool{}
+			for _, l := range normals {
+				name := labDisplayName(l)
+				if seen[name] {
+					continue
+				}
+				seen[name] = true
+				unit := ""
+				if l.Unit != nil {
+					unit = *l.Unit
+				}
+				b.WriteString(fmt.Sprintf("- %s: %.2f %s (%s)\n",
+					name, l.Value, unit, l.CollectedAt.Format("2006-01-02")))
+			}
+		}
+	}
+
+	if len(ac.Trends) > 0 {
+		significant := false
+		for _, t := range ac.Trends {
+			if t.Significance == "significant" || t.Significance == "borderline" {
+				if !significant {
+					b.WriteString("\n## Notable Trends\n")
+					significant = true
+				}
+				b.WriteString(fmt.Sprintf("- %s: %s (%.1f%% change, %s)\n",
+					t.Name, t.Direction, t.PercentChange, t.Interpretation))
+			}
+		}
 	}
 
 	if ac.Visit != nil {
+		reason, doctor := "", ""
+		if ac.Visit.Reason != nil {
+			reason = *ac.Visit.Reason
+		}
+		if ac.Visit.DoctorName != nil {
+			doctor = *ac.Visit.DoctorName
+		}
 		b.WriteString(fmt.Sprintf("## Current Visit\nReason: %s | Doctor: %s | Phase: %s\n",
-			ac.Visit.Reason, ac.Visit.DoctorName, ac.Visit.Status))
+			reason, doctor, ac.Visit.Status))
 	}
 
 	return b.String()
+}
+
+func labDisplayName(l entities.AnnotatedLab) string {
+	if l.LoincName != "" {
+		return l.LoincName
+	}
+	if l.LabName != nil && *l.LabName != "" {
+		return *l.LabName
+	}
+	if l.LoincCode != nil {
+		return *l.LoincCode
+	}
+	return "Unknown"
 }

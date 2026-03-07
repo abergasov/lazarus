@@ -75,8 +75,9 @@ func InitAppRouter(
 		appAddr: address,
 		httpEngine: fiber.New(fiber.Config{
 			ReadTimeout:  15 * time.Second,
-			WriteTimeout: 15 * time.Second,
+			WriteTimeout: 5 * time.Minute, // SSE streams need long write timeout
 			IdleTimeout:  60 * time.Second,
+			BodyLimit:    500 * 1024 * 1024, // 500MB for bulk document uploads
 		}),
 		srvAuth: srvAuth,
 		srvUser: srvUser,
@@ -135,6 +136,8 @@ func (s *Server) initRoutes() {
 
 	api.Post("/documents", s.wrapAuthUUID(s.handleDocumentUpload))
 	api.Get("/documents", s.wrapAuthUUID(s.handleListDocuments))
+	api.Delete("/documents/:id", s.wrapAuthUUID(s.handleDeleteDocument))
+	api.Post("/documents/:id/reparse", s.wrapAuthUUID(s.handleReparseDocument))
 
 	api.Get("/labs", s.wrapAuthUUID(s.handleListLabs))
 	api.Get("/labs/:loinc/trend", s.wrapAuthUUID(s.handleLabTrend))
@@ -142,6 +145,7 @@ func (s *Server) initRoutes() {
 	api.Get("/medications", s.wrapAuthUUID(s.handleListMedications))
 	api.Post("/medications", s.wrapAuthUUID(s.handleAddMedication))
 	api.Delete("/medications/:id", s.wrapAuthUUID(s.handleDeleteMedication))
+	api.Put("/medications/:id/reactivate", s.wrapAuthUUID(s.handleReactivateMedication))
 
 	api.Get("/profile", s.wrapAuthUUID(s.handleGetProfile))
 	api.Put("/profile/demographics", s.wrapAuthUUID(s.handleUpdateDemographics))

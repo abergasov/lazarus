@@ -5,6 +5,7 @@ import (
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
+	"lazarus/internal/entities"
 	"lazarus/internal/repository"
 )
 
@@ -13,6 +14,9 @@ func (s *Server) handleListLabs(c *fiber.Ctx, userID uuid.UUID) error {
 	labs, err := repo.ListByUser(c.Context(), userID)
 	if err != nil {
 		return c.Status(500).JSON(fiber.Map{"error": err.Error()})
+	}
+	if labs == nil {
+		labs = []entities.LabResult{}
 	}
 	return c.JSON(labs)
 }

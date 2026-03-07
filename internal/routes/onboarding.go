@@ -17,40 +17,67 @@ func (s *Server) handleOnboardingUpload(c *fiber.Ctx, userID uuid.UUID) error {
 		return c.Status(503).JSON(fiber.Map{"error": "document service not configured"})
 	}
 
-	file, err := c.FormFile("file")
+	form, err := c.MultipartForm()
 	if err != nil {
-		return c.Status(400).JSON(fiber.Map{"error": "file required"})
+		return c.Status(400).JSON(fiber.Map{"error": "multipart form required"})
 	}
 
-	// Upload document
-	doc, err := s.docSvc.Upload(c.Context(), userID, "", file, "onboarding")
-	if err != nil {
-		return c.Status(500).JSON(fiber.Map{"error": err.Error()})
+	files := form.File["files"]
+	if len(files) == 0 {
+		files = form.File["file"]
+	}
+	if len(files) == 0 {
+		return c.Status(400).JSON(fiber.Map{"error": "at least one file required"})
 	}
 
 	// Stream processing steps via SSE
 	writer := agent.NewStreamWriter(c)
 	c.Status(200)
 
-	// Step 1: Document uploaded
+	// Upload all documents
+	totalFiles := len(files)
 	writer.Write(entities.ClientEvent{
 		Type:    "processing_step",
-		Payload: map[string]string{"step": "upload", "status": "done", "label": "Document uploaded"},
+		Payload: map[string]string{"step": "upload", "status": "running", "label": fmt.Sprintf("Uploading %d document(s)...", totalFiles)},
 	})
 	writer.Flush()
 
-	// Step 2: Parse document (async, but we wait for initial extraction)
+	for i, file := range files {
+		doc, err := s.docSvc.Upload(c.Context(), userID, "", file, "onboarding")
+		if err != nil {
+			writer.Write(entities.ClientEvent{
+				Type:    "processing_step",
+				Payload: map[string]string{"step": "upload", "status": "error", "label": fmt.Sprintf("Failed to upload %s: %s", file.Filename, err.Error())},
+			})
+			writer.Flush()
+			continue
+		}
+
+		go s.docSvc.Parse(context.Background(), doc.ID)
+
+		writer.Write(entities.ClientEvent{
+			Type:    "processing_step",
+			Payload: map[string]string{"step": "upload", "status": "running", "label": fmt.Sprintf("Uploaded %d/%d: %s", i+1, totalFiles, file.Filename)},
+		})
+		writer.Flush()
+	}
+
 	writer.Write(entities.ClientEvent{
 		Type:    "processing_step",
-		Payload: map[string]string{"step": "parse", "status": "running", "label": "Reading your document..."},
+		Payload: map[string]string{"step": "upload", "status": "done", "label": fmt.Sprintf("%d document(s) uploaded", totalFiles)},
 	})
 	writer.Flush()
 
-	go s.docSvc.Parse(context.Background(), doc.ID)
+	// Step 2: Parse
+	writer.Write(entities.ClientEvent{
+		Type:    "processing_step",
+		Payload: map[string]string{"step": "parse", "status": "running", "label": "Reading your documents..."},
+	})
+	writer.Flush()
 
 	writer.Write(entities.ClientEvent{
 		Type:    "processing_step",
-		Payload: map[string]string{"step": "parse", "status": "done", "label": "Document parsed"},
+		Payload: map[string]string{"step": "parse", "status": "done", "label": "Documents parsed"},
 	})
 	writer.Flush()
 
@@ -72,11 +99,10 @@ func (s *Server) handleOnboardingUpload(c *fiber.Ctx, userID uuid.UUID) error {
 	if s.orchestrator != nil {
 		sess, err := s.orchestrator.GetOrCreateSession(c.Context(), userID, "")
 		if err == nil {
-			extractPrompt := "Extract demographics, conditions, and medications from the uploaded medical document. Return structured data."
+			extractPrompt := "Extract demographics, conditions, and medications from the uploaded medical documents. Return structured data."
 			eventCh, err := s.orchestrator.Run(c.Context(), sess, extractPrompt)
 			if err == nil {
 				for ev := range eventCh {
-					// Forward relevant events
 					if ev.Type == entities.EventTextDelta || ev.Type == entities.EventStructured {
 						writer.Write(ev)
 						writer.Flush()
@@ -101,7 +127,7 @@ func (s *Server) handleOnboardingUpload(c *fiber.Ctx, userID uuid.UUID) error {
 	writer.Flush()
 
 	writer.Write(entities.ClientEvent{
-		Type: entities.EventDone,
+		Type:    entities.EventDone,
 		Payload: entities.DonePayload{},
 	})
 	writer.Flush()
@@ -134,13 +160,39 @@ func (s *Server) handleOnboardingConfirm(c *fiber.Ctx, userID uuid.UUID) error {
 
 	// Create welcome insight card
 	icRepo := repository.NewInsightCardRepo(s.db)
+
+	// Count documents to personalize the message
+	docRepo := repository.NewDocumentRepo(s.db)
+	docs, _ := docRepo.ListByUser(c.Context(), userID)
+	labRepo := repository.NewLabRepo(s.db)
+	labs, _ := labRepo.ListByUser(c.Context(), userID)
+
+	parsedCount := 0
+	for _, d := range docs {
+		if d.ParseStatus == entities.ParseStatusDone {
+			parsedCount++
+		}
+	}
+
+	var welcomeBody string
+	if parsedCount > 0 && len(labs) > 0 {
+		welcomeBody = fmt.Sprintf("We've processed %d documents and found %d lab results. Check your Records to review them, or schedule an appointment to get AI-powered visit preparation.", parsedCount, len(labs))
+	} else if len(docs) > 0 {
+		welcomeBody = fmt.Sprintf("We've uploaded %d documents. They're still being processed — check back soon, or schedule an appointment to get started.", len(docs))
+	} else {
+		welcomeBody = "Upload your medical documents to get started. MedHelp will extract lab results, medications, and help you prepare for doctor visits."
+	}
+
+	welcomeActions := []entities.Action{
+		{Label: "View Records", Endpoint: "/records", Method: "GET"},
+	}
 	welcome := &entities.InsightCard{
 		UserID:   userID,
 		Type:     entities.InsightWelcome,
 		Title:    "Welcome to MedHelp",
-		Body:     fmt.Sprintf("Your health profile is set up. Upload more documents to get personalized insights."),
+		Body:     welcomeBody,
 		Severity: entities.SeverityInfo,
-		Actions:  []entities.Action{},
+		Actions:  welcomeActions,
 	}
 	_ = icRepo.Create(c.Context(), welcome)
 

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"math"
+	"time"
 
 	"github.com/google/uuid"
 	"lazarus/internal/entities"
@@ -67,7 +68,7 @@ func flagAbnormalsTool(deps *Deps) *Tool {
 			if uc.PatientModel != nil {
 				sex = uc.PatientModel.Demographics.Sex
 				if !uc.PatientModel.Demographics.DateOfBirth.IsZero() {
-					age = int(uc.PatientModel.Demographics.DateOfBirth.Year())
+					age = int(time.Since(uc.PatientModel.Demographics.DateOfBirth).Hours() / 8766)
 				}
 			}
 
@@ -101,17 +102,25 @@ func flagAbnormalsTool(deps *Deps) *Tool {
 			result := FlagResult{}
 			seen := map[string]bool{}
 			for _, row := range rows {
-				if seen[row.LoincCode] {
+				lc := ""
+				if row.LoincCode != nil {
+					lc = *row.LoincCode
+				}
+				if seen[lc] {
 					continue
 				}
-				seen[row.LoincCode] = true
+				seen[lc] = true
 
-				refRange, _ := deps.KBRepo.GetReferenceRange(ctx, row.LoincCode, sex, age)
+				refRange, _ := deps.KBRepo.GetReferenceRange(ctx, lc, sex, age)
+				unit := ""
+				if row.Unit != nil {
+					unit = *row.Unit
+				}
 				fv := FlaggedValue{
-					LoincCode: row.LoincCode,
+					LoincCode: lc,
 					Name:      row.LoincName,
 					Value:     row.Value,
-					Unit:      row.Unit,
+					Unit:      unit,
 					Flag:      row.Flag,
 				}
 				if refRange != nil {

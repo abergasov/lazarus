@@ -3,6 +3,8 @@ package agent
 import (
 	"context"
 	"fmt"
+	"log/slog"
+	"runtime/debug"
 
 	"github.com/google/uuid"
 	"lazarus/internal/agent/agents"
@@ -40,6 +42,12 @@ func (o *Orchestrator) Run(ctx context.Context, sess *Session, userMsg string) (
 
 	go func() {
 		defer close(out)
+		defer func() {
+			if r := recover(); r != nil {
+				slog.Error("orchestrator panic", "error", r, "stack", string(debug.Stack()))
+				out <- entities.ClientEvent{Type: entities.EventError, Payload: "An internal error occurred. Please try again."}
+			}
+		}()
 
 		// 1. Assemble context concurrently
 		ac, err := o.assembler.Build(ctx, sess)
@@ -49,8 +57,24 @@ func (o *Orchestrator) Run(ctx context.Context, sess *Session, userMsg string) (
 		}
 
 		// 2. Route to sub-agent
+		userIDStr := sess.UserID.String()
 		var runErr error
+		// Pick the right provider role — general conversations fall back to "prep" provider
+		provRole := sess.Phase
+		if provRole == entities.PhaseGeneral {
+			provRole = "prep"
+		}
+
 		switch sess.Phase {
+		case entities.PhaseGeneral:
+			p, model, err := o.providers.ForRole(provRole)
+			if err != nil {
+				out <- entities.ClientEvent{Type: entities.EventError, Payload: err.Error()}
+				return
+			}
+			a := agents.NewGeneralAgent(p, model, o.toolReg)
+			runErr = a.Execute(ctx, sess.Messages, ac.SystemPromptContext, userIDStr, userMsg, out)
+
 		case entities.PhasePreparing:
 			p, model, err := o.providers.ForRole("prep")
 			if err != nil {
@@ -58,7 +82,7 @@ func (o *Orchestrator) Run(ctx context.Context, sess *Session, userMsg string) (
 				return
 			}
 			a := agents.NewPrepAgent(p, model, o.toolReg)
-			runErr = a.Execute(ctx, sess.Messages, ac.SystemPromptContext, userMsg, out)
+			runErr = a.Execute(ctx, sess.Messages, ac.SystemPromptContext, userIDStr, userMsg, out)
 
 		case entities.PhaseDuring:
 			p, model, err := o.providers.ForRole("during")
@@ -67,7 +91,7 @@ func (o *Orchestrator) Run(ctx context.Context, sess *Session, userMsg string) (
 				return
 			}
 			a := agents.NewDuringAgent(p, model, o.toolReg)
-			runErr = a.Execute(ctx, sess.Messages, ac.SystemPromptContext, userMsg, out)
+			runErr = a.Execute(ctx, sess.Messages, ac.SystemPromptContext, userIDStr, userMsg, out)
 
 		case entities.PhaseCompleted:
 			p, model, err := o.providers.ForRole("after")
@@ -76,7 +100,7 @@ func (o *Orchestrator) Run(ctx context.Context, sess *Session, userMsg string) (
 				return
 			}
 			a := agents.NewAfterAgent(p, model, o.toolReg)
-			runErr = a.Execute(ctx, sess.Messages, ac.SystemPromptContext, userMsg, out)
+			runErr = a.Execute(ctx, sess.Messages, ac.SystemPromptContext, userIDStr, userMsg, out)
 
 		default:
 			out <- entities.ClientEvent{Type: entities.EventError, Payload: fmt.Sprintf("unknown phase: %s", sess.Phase)}
@@ -89,7 +113,9 @@ func (o *Orchestrator) Run(ctx context.Context, sess *Session, userMsg string) (
 
 		// 3. Persist session
 		if o.sessions.db != nil {
-			_ = o.sessions.Save(ctx, sess)
+			if err := o.sessions.Save(ctx, sess); err != nil {
+				slog.Error("failed to save session", "error", err, "session_id", sess.ID)
+			}
 		}
 	}()
 
@@ -115,9 +141,14 @@ func (o *Orchestrator) ProactivePrepare(ctx context.Context, visit *entities.Vis
 
 // GetOrCreateSession is a convenience method for routes
 func (o *Orchestrator) GetOrCreateSession(ctx context.Context, userID uuid.UUID, visitIDStr string) (*Session, error) {
+	// Non-visit conversations use the general health agent
+	if visitIDStr == "" {
+		return o.sessions.GetOrCreate(ctx, userID, "", entities.PhaseGeneral)
+	}
+
 	// Determine phase from visit status
 	phase := entities.PhasePreparing
-	if o.sessions.db != nil && visitIDStr != "" {
+	if o.sessions.db != nil {
 		visitRepo := o.assembler.visitRepo
 		if visitRepo != nil {
 			if v, err := visitRepo.Get(ctx, visitIDStr); err == nil {

@@ -3,41 +3,54 @@ export type Me = { id: number; email: string; display_name?: string };
 export type Visit = {
   id: string;
   user_id: string;
-  scheduled_at: string;
-  doctor_name: string;
-  specialty: string;
-  location: string;
-  phase: 'before' | 'during' | 'after' | 'closed';
-  plan?: VisitPlan;
+  doctor_name: string | null;
+  specialty: string | null;
+  clinic_name: string | null;
+  visit_date: string | null;
+  visit_type: string | null;
+  reason: string | null;
+  status: 'preparing' | 'during' | 'completed' | 'cancelled';
+  plan: VisitPlan | null;
+  outcome: VisitOutcome | null;
+  follow_up_date: string | null;
   created_at: string;
   updated_at: string;
 };
 
 export type VisitPlan = {
-  priorities?: Priority[];
+  lead_with?: Priority[];
   questions?: Question[];
-  outcomes?: Outcome;
-  action_items?: ActionItem[];
-  follow_ups?: FollowUp[];
+  pushback_lines?: PushbackLine[];
+  bring_up_if_time?: string[];
+  doctor_summary?: string;
+  generated_at?: string;
 };
 
-export type Priority = { concern: string; urgency: 'high' | 'medium' | 'low'; context: string };
-export type Question = { question: string; category: string; priority: number };
-export type Outcome = {
-  diagnoses?: { icd10: string; description: string }[];
-  prescriptions?: { name: string; dose: string; instructions: string }[];
-  gaps?: { concern: string; recommendation: string }[];
+export type Priority = { item: string; evidence?: string[]; urgency: 'critical' | 'high' | 'routine' };
+export type Question = { text: string; rationale: string; order_rank: number; asked: boolean };
+export type PushbackLine = { trigger: string; response: string };
+
+export type VisitOutcome = {
+  doctor_said?: string;
+  diagnoses?: { icd10_code: string; name: string; status: string }[];
+  prescribed?: { name: string; dose: string; frequency: string }[];
+  instructions?: string[];
+  gaps?: { description: string; severity: string }[];
+  action_items?: ActionItem[];
+  open_follow_ups?: FollowUp[];
   summary?: string;
+  recorded_at?: string;
 };
-export type ActionItem = { task: string; due_date?: string; category: string };
-export type FollowUp = { reason: string; urgency: string; timeframe: string };
+
+export type ActionItem = { action: string; reason: string; due_date?: string; done: boolean };
+export type FollowUp = { action: string; reason: string; from_visit: string; due_date?: string; completed: boolean };
 
 export type Lab = {
   id: string;
-  loinc_code: string;
-  test_name: string;
+  loinc_code: string | null;
+  lab_name: string | null;
   value: number;
-  unit: string;
+  unit: string | null;
   flag: string;
   collected_at: string;
 };
@@ -45,13 +58,13 @@ export type Lab = {
 export type TrendSummary = {
   loinc_code: string;
   name: string;
-  unit: string;
-  points: DataPoint[];
-  direction: 'up' | 'down' | 'stable';
-  significant: boolean;
+  data_points: DataPoint[];
+  direction: 'increasing' | 'decreasing' | 'stable';
+  slope: number;
   percent_change: number;
-  latest_value: number;
-  latest_flag: string;
+  significance: string;
+  current_flag: string;
+  interpretation: string;
 };
 
 export type DataPoint = { value: number; collected_at: string; flag: string };
@@ -62,7 +75,9 @@ export type Medication = {
   dose: string;
   frequency: string;
   rxcui?: string;
+  is_active: boolean;
   started_at?: string;
+  ended_at?: string;
 };
 
 export type PatientModel = {
@@ -88,7 +103,7 @@ export type RiskScore = { value: number; label: string; computed_at: string };
 
 export type Document = {
   id: string;
-  filename: string;
+  file_name: string | null;
   source_type: string;
   parse_status: string;
   created_at: string;

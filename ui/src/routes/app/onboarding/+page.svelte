@@ -9,12 +9,12 @@
   let extractedModel = $state<PatientModel | null>(null);
   let editDemo = $state<Demographics>({});
 
-  async function handleUpload(file: File) {
+  async function handleUpload(files: File[]) {
     step = 'processing';
-    processingSteps = [{ step: 'upload', status: 'running', label: 'Uploading document...' }];
+    processingSteps = [{ step: 'upload', status: 'running', label: `Uploading ${files.length} document(s)...` }];
 
     try {
-      const res = await onboarding.upload(file);
+      const res = await onboarding.upload(files);
       if (!res.ok || !res.body) {
         processingSteps = [{ step: 'error', status: 'error', label: 'Upload failed' }];
         return;
@@ -64,7 +64,7 @@
   }
 
   async function confirmProfile() {
-    await onboarding.confirm();
+    await onboarding.confirm(editDemo);
     step = 'done';
     setTimeout(() => goto('/app'), 1000);
   }
@@ -74,14 +74,14 @@
   {#if step === 'welcome'}
     <div class="welcome">
       <div class="logo">
-        <svg viewBox="0 0 64 64" fill="none" width="64" height="64"><rect width="64" height="64" rx="16" fill="#007AFF"/><path d="M32 16C22.1 16 14 24.1 14 34s8.1 18 18 18 18-8.1 18-18-8.1-18-18-18zm0 7a2.5 2.5 0 1 1 0 5 2.5 2.5 0 0 1 0-5zm-1.5 9h3v13h-3V32z" fill="white"/></svg>
+        <svg viewBox="0 0 64 64" fill="none" width="64" height="64"><rect width="64" height="64" rx="16" fill="#0D9488"/><path d="M32 16C22.1 16 14 24.1 14 34s8.1 18 18 18 18-8.1 18-18-8.1-18-18-18zm0 7a2.5 2.5 0 1 1 0 5 2.5 2.5 0 0 1 0-5zm-1.5 9h3v13h-3V32z" fill="white"/></svg>
       </div>
       <h1>Welcome to MedHelp</h1>
-      <p class="desc">Upload any medical document — lab results, discharge summary, prescription — and we'll build your health profile automatically.</p>
+      <p class="desc">Upload your medical documents — lab results, discharge summaries, prescriptions — and we'll build your health profile automatically.</p>
       <div class="upload-area">
-        <UploadZone onupload={handleUpload} label="Drop your medical document here" />
+        <UploadZone onupload={handleUpload} label="Drop your medical documents here (select multiple)" />
       </div>
-      <p class="hint">We support PDFs, photos of lab results, and scanned documents.</p>
+      <p class="hint">We support PDFs, photos of lab results, and scanned documents. Select as many as you need.</p>
     </div>
 
   {:else if step === 'processing'}
@@ -124,6 +124,17 @@
             <input type="number" bind:value={editDemo.age} placeholder="—" />
           </label>
           <label>
+            <span>Ethnicity</span>
+            <select bind:value={editDemo.ethnicity}>
+              <option value="">—</option>
+              <option value="white">White</option>
+              <option value="african_american">African American</option>
+              <option value="hispanic">Hispanic</option>
+              <option value="asian">Asian</option>
+              <option value="other">Other</option>
+            </select>
+          </label>
+          <label>
             <span>Height (cm)</span>
             <input type="number" bind:value={editDemo.height_cm} placeholder="—" />
           </label>
@@ -131,10 +142,22 @@
             <span>Weight (kg)</span>
             <input type="number" bind:value={editDemo.weight_kg} placeholder="—" />
           </label>
+          <label>
+            <span>Blood Pressure</span>
+            <div class="bp-row">
+              <input type="number" bind:value={editDemo.blood_pressure_systolic} placeholder="Sys" />
+              <span class="bp-slash">/</span>
+              <input type="number" bind:value={editDemo.blood_pressure_diastolic} placeholder="Dia" />
+            </div>
+          </label>
         </div>
         <label class="toggle-row">
           <span>Smoker</span>
           <input type="checkbox" bind:checked={editDemo.smoker} class="toggle" />
+        </label>
+        <label class="toggle-row">
+          <span>Diabetes</span>
+          <input type="checkbox" bind:checked={editDemo.diabetes} class="toggle" />
         </label>
       </div>
 
@@ -197,6 +220,10 @@
     font-size: 15px; background: var(--bg); outline: none;
   }
   .form-grid input:focus, .form-grid select:focus { border-color: var(--blue); }
+  .bp-row { display: flex; align-items: center; gap: 4px; }
+  .bp-row input { flex: 1; padding: 10px 8px; border-radius: 10px; border: 1px solid var(--separator); font-size: 15px; background: var(--bg); outline: none; text-align: center; }
+  .bp-row input:focus { border-color: var(--blue); }
+  .bp-slash { font-size: 16px; color: var(--text3); }
   .toggle-row { flex-direction: row; align-items: center; justify-content: space-between; padding: 8px 0; }
   .toggle { width: 48px; height: 28px; appearance: none; background: var(--separator); border-radius: 14px; position: relative; cursor: pointer; transition: background 0.2s; }
   .toggle:checked { background: var(--green); }

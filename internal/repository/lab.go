@@ -21,8 +21,9 @@ func (r *LabRepo) Insert(ctx context.Context, lab *entities.LabResult) error {
 	lab.ID = uuid.New()
 	lab.CreatedAt = time.Now()
 	_, err := r.db.NamedExecContext(ctx, `
-		INSERT INTO lab_results (id, user_id, document_id, loinc_code, value, unit, reference_low, reference_high, flag, lab_name, collected_at, created_at)
-		VALUES (:id, :user_id, :document_id, :loinc_code, :value, :unit, :reference_low, :reference_high, :flag, :lab_name, :collected_at, :created_at)
+		INSERT INTO lab_results (id, user_id, document_id, value, unit, reference_low, reference_high, flag, lab_name, collected_at, created_at)
+		VALUES (:id, :user_id, :document_id, :value, :unit, :reference_low, :reference_high, :flag, :lab_name, :collected_at, :created_at)
+		ON CONFLICT (user_id, LOWER(COALESCE(lab_name, '')), collected_at, value) DO NOTHING
 	`, lab)
 	return err
 }
@@ -30,10 +31,9 @@ func (r *LabRepo) Insert(ctx context.Context, lab *entities.LabResult) error {
 func (r *LabRepo) ListByUser(ctx context.Context, userID uuid.UUID) ([]entities.LabResult, error) {
 	var labs []entities.LabResult
 	err := r.db.SelectContext(ctx, &labs, `
-		SELECT DISTINCT ON (loinc_code) *
-		FROM lab_results
+		SELECT * FROM lab_results
 		WHERE user_id = $1
-		ORDER BY loinc_code, collected_at DESC
+		ORDER BY lab_name, collected_at DESC
 	`, userID)
 	return labs, err
 }

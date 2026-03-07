@@ -38,7 +38,7 @@
     <aside class="sidebar">
       <a href="/app" class="brand">
         <div class="brand-icon">
-          <svg viewBox="0 0 32 32" fill="none" width="32" height="32"><rect width="32" height="32" rx="8" fill="#007AFF"/><path d="M16 8C11.6 8 8 11.6 8 16s3.6 8 8 8 8-3.6 8-8-3.6-8-8-8zm0 3a1 1 0 1 1 0 2 1 1 0 0 1 0-2zm-.5 4h1v6h-1v-6z" fill="white"/></svg>
+          <svg viewBox="0 0 32 32" fill="none" width="32" height="32"><rect width="32" height="32" rx="8" fill="#0D9488"/><path d="M16 8C11.6 8 8 11.6 8 16s3.6 8 8 8 8-3.6 8-8-3.6-8-8-8zm0 3a1 1 0 1 1 0 2 1 1 0 0 1 0-2zm-.5 4h1v6h-1v-6z" fill="white"/></svg>
         </div>
         <span class="brand-name">MedHelp</span>
       </a>
@@ -102,7 +102,7 @@
   }
   :global(h1, h2, h3) { letter-spacing: -0.3px; }
   :global(:root) {
-    --blue: #007AFF; --red: #FF3B30; --green: #34C759; --orange: #FF9500; --yellow: #FFCC00;
+    --blue: #0D9488; --red: #DC2626; --green: #34C759; --orange: #FF9500; --yellow: #FFCC00;
     --bg: #F2F2F7; --bg2: #FFFFFF; --separator: #E5E5EA;
     --text: #1C1C1E; --text2: #636366; --text3: #AEAEB2;
     --sidebar-w: 220px; --tabbar-h: 56px; --radius: 14px;
@@ -130,7 +130,7 @@
     transition: background 0.15s, color 0.15s;
   }
   .nav-item:hover { background: var(--bg); color: var(--text); }
-  .nav-item.active { background: rgba(0,122,255,0.1); color: var(--blue); }
+  .nav-item.active { background: rgba(13,148,136,0.1); color: var(--blue); }
 
   .sidebar-footer { border-top: 1px solid var(--separator); padding-top: 16px; display: flex; flex-direction: column; gap: 8px; }
   .user-row { display: flex; align-items: center; gap: 10px; padding: 4px 8px; }

@@ -1,7 +1,7 @@
 <script lang="ts">
   let { phase }: { phase: string } = $props();
   const color = $derived(
-    phase === 'preparing' ? 'var(--blue, #007AFF)' :
+    phase === 'preparing' ? 'var(--blue, #0D9488)' :
     phase === 'during' ? 'var(--green, #34C759)' :
     phase === 'completed' ? 'var(--text3, #AEAEB2)' : 'var(--text3, #AEAEB2)'
   );

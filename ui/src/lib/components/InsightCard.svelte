@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { goto } from '$app/navigation';
   import type { InsightCard } from '$lib/types';
 
   let { card, ondismiss, onask }: {
@@ -11,6 +12,19 @@
     card.severity === 'urgent' ? 'var(--red)' :
     card.severity === 'warning' ? 'var(--orange)' : 'var(--blue)'
   );
+
+  function handleAction(action: { label: string; endpoint: string; method: string; body?: string }) {
+    if (action.method === 'GET') {
+      // Navigate to the frontend route
+      goto('/app' + action.endpoint);
+    } else {
+      fetch('/api/v1' + action.endpoint, {
+        method: action.method, credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: action.body || undefined,
+      });
+    }
+  }
 </script>
 
 <div class="card" style="border-left: 4px solid {severityColor}">
@@ -26,7 +40,7 @@
   <p class="card-body">{card.body}</p>
   <div class="card-actions">
     {#each card.actions as action}
-      <button class="action-btn" onclick={() => fetch('/api/v1' + action.endpoint, { method: action.method, credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: action.body || undefined })}>
+      <button class="action-btn" onclick={() => handleAction(action)}>
         {action.label}
       </button>
     {/each}
@@ -87,7 +101,7 @@
     border-radius: 20px;
     font-size: 13px;
     font-weight: 600;
-    background: var(--blue, #007AFF);
+    background: var(--blue, #0D9488);
     color: white;
     transition: opacity 0.15s;
   }
@@ -99,9 +113,9 @@
     border-radius: 20px;
     font-size: 13px;
     font-weight: 500;
-    color: var(--blue, #007AFF);
-    background: rgba(0, 122, 255, 0.1);
+    color: var(--blue, #0D9488);
+    background: rgba(13, 148, 136, 0.1);
     transition: background 0.15s;
   }
-  .ask-btn:hover { background: rgba(0, 122, 255, 0.18); }
+  .ask-btn:hover { background: rgba(13, 148, 136, 0.18); }
 </style>

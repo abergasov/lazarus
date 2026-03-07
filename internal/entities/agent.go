@@ -7,6 +7,7 @@ const (
 	PhasePreparing = "preparing"
 	PhaseDuring    = "during"
 	PhaseCompleted = "completed"
+	PhaseGeneral   = "general" // non-visit health conversations
 )
 
 // AgentSession — stored in DB

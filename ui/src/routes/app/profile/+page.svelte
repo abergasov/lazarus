@@ -194,7 +194,7 @@
   .add-row input:focus { border-color: var(--blue); }
   .add-row button {
     all: unset; cursor: pointer; padding: 8px 16px; border-radius: 8px;
-    font-size: 14px; font-weight: 500; color: var(--blue); background: rgba(0,122,255,0.1);
+    font-size: 14px; font-weight: 500; color: var(--blue); background: rgba(13,148,136,0.1);
   }
   .add-row button:disabled { opacity: 0.3; }
 

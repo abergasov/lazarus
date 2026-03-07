@@ -14,7 +14,8 @@ RUN make build_in_docker
 # step 2 - create container to run
 FROM alpine:latest
 # It's essential to regularly update the packages within the image to include security patches
-RUN apk update && apk upgrade
+# poppler-utils provides pdftoppm for PDF-to-image conversion (used by document OCR)
+RUN apk update && apk upgrade && apk add --no-cache poppler-utils
 
 # Reduce image size
 RUN rm -rf /var/cache/apk/* && rm -rf /tmp/*

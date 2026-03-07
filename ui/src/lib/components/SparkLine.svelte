@@ -1,5 +1,5 @@
 <script lang="ts">
-  let { points, width = 80, height = 24, color = 'var(--blue, #007AFF)' }: {
+  let { points, width = 80, height = 24, color = 'var(--blue, #0D9488)' }: {
     points: number[];
     width?: number;
     height?: number;

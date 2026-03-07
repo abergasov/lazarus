@@ -118,6 +118,9 @@ func main() {
 		scheduler := agent.NewScheduler(orchestrator, visitRepo, pushService)
 		go scheduler.Start(ctx)
 
+		// Re-parse any documents stuck in pending (e.g. from failed prior runs)
+		go docService.ReParsePending(ctx)
+
 		medDeps = &routes.MedHelpDeps{
 			DB:           db,
 			Orchestrator: orchestrator,

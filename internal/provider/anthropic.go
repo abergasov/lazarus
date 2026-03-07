@@ -5,6 +5,8 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"log/slog"
+	"runtime/debug"
 	"strings"
 
 	"github.com/anthropics/anthropic-sdk-go"
@@ -91,6 +93,12 @@ func (a *AnthropicAdapter) Stream(ctx context.Context, req *Request) (<-chan Eve
 
 	go func() {
 		defer close(ch)
+		defer func() {
+			if r := recover(); r != nil {
+				slog.Error("anthropic stream panic", "error", r, "stack", string(debug.Stack()))
+				ch <- Event{Type: EventTypeError, Error: fmt.Errorf("internal error in LLM stream")}
+			}
+		}()
 
 		stream := a.client.Messages.NewStreaming(ctx, params)
 

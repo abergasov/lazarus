@@ -40,7 +40,7 @@ export const visits = {
     req<Visit>(`/visits/${id}/phase`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ phase }),
+      body: JSON.stringify({ status: phase }),
     }),
 };
 
@@ -54,13 +54,15 @@ export const labs = {
 // Medications
 export const medications = {
   list: () => reqList<Medication>('/medications'),
+  listAll: () => reqList<Medication>('/medications?include=all'),
   add: (body: Partial<Medication>) =>
     req<Medication>('/medications', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
     }),
-  remove: (id: string) => req<void>(`/medications/${id}`, { method: 'DELETE' }),
+  stop: (id: string) => req<void>(`/medications/${id}`, { method: 'DELETE' }),
+  reactivate: (id: string) => req<any>(`/medications/${id}/reactivate`, { method: 'PUT' }),
 };
 
 // Profile
@@ -83,12 +85,15 @@ export const profile = {
 // Documents
 export const documents = {
   list: () => reqList<Document>('/documents'),
-  upload: (file: File, visitId?: string, sourceType = 'lab_result') => {
+  remove: (id: string) => req<void>(`/documents/${id}`, { method: 'DELETE' }),
+  reparse: (id: string) => req<any>(`/documents/${id}/reparse`, { method: 'POST' }),
+  upload: (files: File | File[], visitId?: string, sourceType = 'lab_result') => {
     const fd = new FormData();
-    fd.append('file', file);
+    const fileArr = Array.isArray(files) ? files : [files];
+    for (const f of fileArr) fd.append('files', f);
     if (visitId) fd.append('visit_id', visitId);
     fd.append('source_type', sourceType);
-    return req<Document>('/documents', { method: 'POST', body: fd });
+    return req<any>('/documents', { method: 'POST', body: fd });
   },
 };
 
@@ -123,10 +128,15 @@ export const conversations = {
 
 // Onboarding
 export const onboarding = {
-  upload: (file: File) => {
+  upload: (files: File | File[]) => {
     const fd = new FormData();
-    fd.append('file', file);
+    const fileArr = Array.isArray(files) ? files : [files];
+    for (const f of fileArr) fd.append('files', f);
     return fetch('/api/v1/onboarding/upload', { method: 'POST', credentials: 'include', body: fd });
   },
-  confirm: () => req<PatientModel>('/onboarding/confirm', { method: 'POST' }),
+  confirm: (demographics?: Demographics) => req<PatientModel>('/onboarding/confirm', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(demographics ?? {}),
+  }),
 };

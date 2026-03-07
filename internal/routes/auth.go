@@ -11,7 +11,6 @@ import (
 	"lazarus/internal/utils"
 	"net/http"
 	"net/url"
-	"strings"
 
 	"time"
 
@@ -55,7 +54,14 @@ func (s *Server) oauthGoogleCallback(c *fiber.Ctx) error {
 		return c.Redirect("/", http.StatusTemporaryRedirect)
 	}
 
-	usr, err := s.getUserDataFromGoogle(c.FormValue("code"))
+	// Build redirect URL dynamically to match what was sent in the login request
+	scheme := "http"
+	if c.Protocol() == "https" {
+		scheme = "https"
+	}
+	callbackURL := scheme + "://" + c.Get("Host") + "/api/auth/google/callback"
+
+	usr, err := s.getUserDataFromGoogle(c.FormValue("code"), callbackURL)
 	if err != nil {
 		s.log.Error("error get data from google", fmt.Errorf("error get user data from google: %w", err))
 		return c.Redirect("/", http.StatusTemporaryRedirect)
@@ -70,14 +76,21 @@ func (s *Server) oauthGoogleCallback(c *fiber.Ctx) error {
 		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{"error": "error set code challenge"})
 	}
 	s.setSecretCookie(c, TokenCookie, jwt)
-	frontendURL := strings.TrimSuffix(s.conf.FrontendURL, "/")
-	redirectURL := frontendURL + "/?" + url.Values{"code": {code.String()}}.Encode()
-	return c.Redirect(redirectURL, http.StatusTemporaryRedirect)
+	// Redirect to the same host the user came from
+	frontendScheme := "http"
+	if c.Protocol() == "https" {
+		frontendScheme = "https"
+	}
+	frontendBase := frontendScheme + "://" + c.Get("Host")
+	redirectTo := frontendBase + "/?" + url.Values{"code": {code.String()}}.Encode()
+	return c.Redirect(redirectTo, http.StatusTemporaryRedirect)
 }
 
-func (s *Server) getUserDataFromGoogle(code string) (*entities.GoogleUser, error) {
+func (s *Server) getUserDataFromGoogle(code string, redirectURL string) (*entities.GoogleUser, error) {
 	// Use code to get token and get user info from Google.
-	token, err := s.googleOAuth.Exchange(context.Background(), code)
+	cfg := *s.googleOAuth
+	cfg.RedirectURL = redirectURL
+	token, err := cfg.Exchange(context.Background(), code)
 	if err != nil {
 		return nil, fmt.Errorf("code exchange wrong: %w", err)
 	}
@@ -105,7 +118,7 @@ func (s *Server) setSecretCookie(c *fiber.Ctx, keyName, keyValue string) {
 		Path:     "/",              // critical
 		Domain:   "",               // local
 		HTTPOnly: true,             // critical
-		Secure:   s.conf.SSLEnable, // local
+		Secure:   c.Protocol() == "https",
 		SameSite: fiber.CookieSameSiteLaxMode,
 		Expires:  exp,
 		MaxAge:   maxAge,

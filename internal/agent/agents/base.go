@@ -3,6 +3,9 @@ package agents
 import (
 	"context"
 	"encoding/json"
+	"fmt"
+	"log/slog"
+	"runtime/debug"
 	"sync"
 
 	"lazarus/internal/agent/tools"
@@ -10,7 +13,7 @@ import (
 	"lazarus/internal/provider"
 )
 
-const maxIterations = 10
+const maxIterations = 5
 
 type agentBase struct {
 	prov     provider.Provider
@@ -32,6 +35,7 @@ func (a *agentBase) runLoop(
 	phase string,
 	systemPrompt string,
 	userMsg string,
+	userID string,
 	out chan<- entities.ClientEvent,
 ) error {
 	availableTools := a.registry.ForPhase(phase)
@@ -46,7 +50,7 @@ func (a *agentBase) runLoop(
 
 	messages := append(session.GetMessages(), provider.Message{Role: "user", Content: userMsg})
 
-	uc := &tools.UserContext{Phase: phase}
+	uc := &tools.UserContext{Phase: phase, UserID: userID}
 
 	for iteration := 0; iteration < maxIterations; iteration++ {
 		req := &provider.Request{
@@ -54,7 +58,7 @@ func (a *agentBase) runLoop(
 			System:    systemPrompt + "\n\n" + assembledCtx.GetSystemPromptContext(),
 			Messages:  messages,
 			Tools:     toolDefs,
-			MaxTokens: 4096,
+			MaxTokens: 2048,
 		}
 
 		eventCh, err := a.prov.Stream(ctx, req)
@@ -99,6 +103,12 @@ func (a *agentBase) runLoop(
 			wg.Add(1)
 			go func(idx int, call provider.ToolCall) {
 				defer wg.Done()
+				defer func() {
+					if r := recover(); r != nil {
+						slog.Error("tool execution panic", "tool", call.Name, "error", r, "stack", string(debug.Stack()))
+						results[idx] = toolExecResult{CallID: call.ID, Name: call.Name, Error: fmt.Errorf("tool %s panicked: %v", call.Name, r)}
+					}
+				}()
 				result, err := a.registry.Execute(ctx, call.Name, call.Args, uc)
 				results[idx] = toolExecResult{CallID: call.ID, Name: call.Name, Result: result, Error: err}
 				success := err == nil

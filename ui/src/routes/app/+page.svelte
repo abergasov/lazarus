@@ -1,5 +1,6 @@
 <script lang="ts">
-  import { home, insights as insightsApi, conversations as convApi, documents } from '$lib/api';
+  import { goto } from '$app/navigation';
+  import { home, insights as insightsApi, conversations as convApi, documents, visits } from '$lib/api';
   import type { HomeData, InsightCard as InsightCardType } from '$lib/types';
   import InsightCard from '$lib/components/InsightCard.svelte';
   import PhaseBadge from '$lib/components/PhaseBadge.svelte';
@@ -12,6 +13,8 @@
   let showConversation = $state(false);
   let conversationId = $state('');
   let conversationLabel = $state('');
+  let showNewVisit = $state(false);
+  let newVisit = $state({ doctor_name: '', specialty: '', visit_date: '', reason: '' });
 
   async function load() {
     try { data = await home.get(); }
@@ -35,8 +38,17 @@
     showConversation = true;
   }
 
-  async function handleUpload(file: File) {
-    await documents.upload(file);
+  async function createVisit() {
+    const body: any = { doctor_name: newVisit.doctor_name, specialty: newVisit.specialty, reason: newVisit.reason };
+    if (newVisit.visit_date) body.visit_date = new Date(newVisit.visit_date).toISOString();
+    const v = await visits.create(body);
+    showNewVisit = false;
+    newVisit = { doctor_name: '', specialty: '', visit_date: '', reason: '' };
+    goto('/app/visits/' + v.id);
+  }
+
+  async function handleUpload(files: File[]) {
+    await documents.upload(files);
     await load();
   }
 
@@ -82,11 +94,29 @@
       <UploadZone onupload={handleUpload} label="Drop a medical document to get personalized insights" />
     {/if}
 
-    {#if data.visits.length > 0}
-      <div class="section">
-        <div class="section-header">
-          <h2>Visits</h2>
-        </div>
+    <div class="section">
+      <div class="section-header">
+        <h2>Visits</h2>
+        <button class="add-visit-btn" onclick={() => { showNewVisit = !showNewVisit; }}>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          New Appointment
+        </button>
+      </div>
+
+      {#if showNewVisit}
+        <form class="new-visit-form" onsubmit={(e) => { e.preventDefault(); createVisit(); }}>
+          <input bind:value={newVisit.doctor_name} placeholder="Doctor name" required />
+          <input bind:value={newVisit.specialty} placeholder="Specialty (e.g. Cardiologist)" />
+          <input type="datetime-local" bind:value={newVisit.visit_date} />
+          <input bind:value={newVisit.reason} placeholder="Reason for visit" />
+          <div class="form-actions">
+            <button type="button" class="cancel-btn" onclick={() => { showNewVisit = false; }}>Cancel</button>
+            <button type="submit" class="submit-btn" disabled={!newVisit.doctor_name}>Create</button>
+          </div>
+        </form>
+      {/if}
+
+      {#if data.visits.length > 0}
         <div class="visit-list">
           {#each data.visits as visit}
             <a href="/app/visits/{visit.id}" class="visit-row">
@@ -99,8 +129,10 @@
             </a>
           {/each}
         </div>
-      </div>
-    {/if}
+      {:else if !showNewVisit}
+        <p class="hint">No upcoming appointments. Tap "New Appointment" to get started.</p>
+      {/if}
+    </div>
 
     {#if data.insights.length > 1}
       <div class="section">
@@ -145,4 +177,35 @@
   .visit-info { flex: 1; }
   .visit-doctor { font-size: 15px; font-weight: 500; display: block; }
   .visit-specialty { font-size: 12px; color: var(--text3); }
+
+  .add-visit-btn {
+    all: unset; cursor: pointer; display: flex; align-items: center; gap: 6px;
+    font-size: 14px; font-weight: 500; color: var(--blue); padding: 6px 12px;
+    border-radius: 10px; transition: background 0.15s;
+  }
+  .add-visit-btn:hover { background: rgba(13,148,136,0.1); }
+
+  .new-visit-form {
+    background: var(--bg2); border-radius: var(--radius); padding: 16px;
+    display: flex; flex-direction: column; gap: 10px; margin-bottom: 12px;
+  }
+  .new-visit-form input {
+    padding: 10px 14px; border-radius: 10px; border: 1px solid var(--separator);
+    font-size: 14px; outline: none; background: var(--bg);
+  }
+  .new-visit-form input:focus { border-color: var(--blue); }
+  .form-actions { display: flex; gap: 8px; justify-content: flex-end; }
+  .cancel-btn {
+    all: unset; cursor: pointer; padding: 8px 16px; border-radius: 10px;
+    font-size: 14px; color: var(--text2); transition: background 0.15s;
+  }
+  .cancel-btn:hover { background: var(--bg); }
+  .submit-btn {
+    all: unset; cursor: pointer; padding: 8px 20px; border-radius: 10px;
+    background: var(--blue); color: white; font-size: 14px; font-weight: 600;
+    transition: opacity 0.15s;
+  }
+  .submit-btn:hover { opacity: 0.9; }
+  .submit-btn:disabled { opacity: 0.4; cursor: default; }
+  .hint { font-size: 14px; color: var(--text3); text-align: center; padding: 20px 0; }
 </style>

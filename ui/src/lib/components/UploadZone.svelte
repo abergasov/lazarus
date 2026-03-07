@@ -1,6 +1,6 @@
 <script lang="ts">
-  let { onupload, label = 'Drop a file here or tap to upload' }: {
-    onupload: (file: File) => Promise<void>;
+  let { onupload, label = 'Drop files here or tap to upload' }: {
+    onupload: (files: File[]) => Promise<void>;
     label?: string;
   } = $props();
 
@@ -11,19 +11,22 @@
   function handleDrop(e: DragEvent) {
     e.preventDefault();
     dragging = false;
-    const file = e.dataTransfer?.files[0];
-    if (file) doUpload(file);
+    const files = e.dataTransfer?.files;
+    if (files && files.length > 0) doUpload(Array.from(files));
   }
 
   function handleInput(e: Event) {
-    const file = (e.target as HTMLInputElement).files?.[0];
-    if (file) doUpload(file);
+    const files = (e.target as HTMLInputElement).files;
+    if (files && files.length > 0) doUpload(Array.from(files));
   }
 
-  async function doUpload(file: File) {
+  async function doUpload(files: File[]) {
     uploading = true;
-    try { await onupload(file); }
-    finally { uploading = false; }
+    try { await onupload(files); }
+    finally {
+      uploading = false;
+      if (fileInput) fileInput.value = '';
+    }
   }
 </script>
 
@@ -49,7 +52,7 @@
     <span class="zone-label">{label}</span>
   {/if}
 </div>
-<input bind:this={fileInput} type="file" accept="image/*,.pdf,.jpg,.jpeg,.png" style="display:none" onchange={handleInput} />
+<input bind:this={fileInput} type="file" accept="image/*,.pdf,.jpg,.jpeg,.png" multiple style="display:none" onchange={handleInput} />
 
 <style>
   .zone {
@@ -65,11 +68,11 @@
     background: transparent;
   }
   .zone:hover, .zone.dragging {
-    border-color: var(--blue, #007AFF);
+    border-color: var(--blue, #0D9488);
     background: rgba(0, 122, 255, 0.04);
   }
   .zone.uploading {
-    border-color: var(--blue, #007AFF);
+    border-color: var(--blue, #0D9488);
     pointer-events: none;
   }
   .zone-label {
@@ -81,7 +84,7 @@
     width: 24px;
     height: 24px;
     border: 3px solid var(--separator, #E5E5EA);
-    border-top-color: var(--blue, #007AFF);
+    border-top-color: var(--blue, #0D9488);
     border-radius: 50%;
     animation: spin 0.8s linear infinite;
   }

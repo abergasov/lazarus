@@ -25,6 +25,9 @@ func (r *MedicationRepo) Create(ctx context.Context, med *entities.Medication) e
 	_, err := r.db.NamedExecContext(ctx, `
 		INSERT INTO medications (id, user_id, rxcui, name, dose, frequency, route, prescriber, is_active, started_at, created_at, updated_at)
 		VALUES (:id, :user_id, :rxcui, :name, :dose, :frequency, :route, :prescriber, :is_active, :started_at, :created_at, :updated_at)
+		ON CONFLICT (user_id, LOWER(name), LOWER(COALESCE(dose, ''))) DO UPDATE SET
+			frequency = EXCLUDED.frequency,
+			updated_at = EXCLUDED.updated_at
 	`, med)
 	return err
 }
@@ -49,6 +52,14 @@ func (r *MedicationRepo) Deactivate(ctx context.Context, id uuid.UUID, userID uu
 	now := time.Now()
 	_, err := r.db.ExecContext(ctx,
 		`UPDATE medications SET is_active = FALSE, ended_at = $1, updated_at = $1 WHERE id = $2 AND user_id = $3`,
+		now, id, userID)
+	return err
+}
+
+func (r *MedicationRepo) Reactivate(ctx context.Context, id uuid.UUID, userID uuid.UUID) error {
+	now := time.Now()
+	_, err := r.db.ExecContext(ctx,
+		`UPDATE medications SET is_active = TRUE, ended_at = NULL, updated_at = $1 WHERE id = $2 AND user_id = $3`,
 		now, id, userID)
 	return err
 }

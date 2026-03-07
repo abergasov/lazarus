@@ -61,7 +61,8 @@ func (r *Registry) ForPhase(phase string) []*Tool {
 	var result []*Tool
 	for _, t := range r.tools {
 		for _, p := range t.Phases {
-			if p == phase {
+			// General phase gets tools from both preparing and during
+			if p == phase || (phase == entities.PhaseGeneral && (p == entities.PhasePreparing || p == entities.PhaseDuring)) {
 				result = append(result, t)
 				break
 			}

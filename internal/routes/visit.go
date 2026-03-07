@@ -30,6 +30,9 @@ func (s *Server) handleListVisits(c *fiber.Ctx, userID uuid.UUID) error {
 	if err != nil {
 		return c.Status(500).JSON(fiber.Map{"error": err.Error()})
 	}
+	if visits == nil {
+		visits = []entities.Visit{}
+	}
 	return c.JSON(visits)
 }
 

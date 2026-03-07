@@ -2,6 +2,7 @@ package agent
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 
 	"github.com/google/uuid"
@@ -49,11 +50,19 @@ func (g *InsightGenerator) ProcessDataChange(ctx context.Context, userID uuid.UU
 }
 
 func (g *InsightGenerator) processDocumentUpload(ctx context.Context, userID uuid.UUID, docID string, repo *repository.InsightCardRepo) {
+	// Only create one "document processed" card per user — skip if one already exists undismissed
+	existing, _ := repo.ListActive(ctx, userID)
+	for _, c := range existing {
+		if c.Type == entities.InsightDocProcessed && c.DismissedAt == nil {
+			return // already have an active document insight
+		}
+	}
+
 	card := &entities.InsightCard{
 		UserID:      userID,
 		Type:        entities.InsightDocProcessed,
-		Title:       "Document processed",
-		Body:        "We've analyzed your uploaded document. Check your Records for extracted lab results and medications.",
+		Title:       "Documents processed",
+		Body:        "We've analyzed your uploaded documents. Check your Records for extracted lab results and medications.",
 		Severity:    entities.SeverityInfo,
 		ContextType: "document",
 		ContextID:   docID,
@@ -107,7 +116,7 @@ func (g *InsightGenerator) processVisitPhase(ctx context.Context, userID uuid.UU
 			UserID:      userID,
 			Type:        entities.InsightVisitPrep,
 			Title:       "Visit completed",
-			Body:        "Your visit with " + visit.DoctorName + " has been recorded. Review the summary and action items.",
+			Body:        "Your visit with " + derefStr(visit.DoctorName) + " has been recorded. Review the summary and action items.",
 			Severity:    entities.SeverityInfo,
 			ContextType: "visit",
 			ContextID:   visitID,
@@ -115,14 +124,16 @@ func (g *InsightGenerator) processVisitPhase(ctx context.Context, userID uuid.UU
 				{Label: "View Summary", Endpoint: "/visits/" + visitID, Method: "GET"},
 			},
 		}
-		_ = repo.Create(ctx, card)
+		if err := repo.Create(ctx, card); err != nil {
+			slog.Error("failed to create visit complete insight", "error", err)
+		}
 
 	case entities.VisitStatusPreparing:
 		card := &entities.InsightCard{
 			UserID:      userID,
 			Type:        entities.InsightVisitPrep,
 			Title:       "Preparing for your visit",
-			Body:        "Your appointment with " + visit.DoctorName + " is being prepared. AI is generating questions based on your health profile.",
+			Body:        "Your appointment with " + derefStr(visit.DoctorName) + " is being prepared. AI is generating questions based on your health profile.",
 			Severity:    entities.SeverityInfo,
 			ContextType: "visit",
 			ContextID:   visitID,
@@ -130,8 +141,17 @@ func (g *InsightGenerator) processVisitPhase(ctx context.Context, userID uuid.UU
 				{Label: "View Prep", Endpoint: "/visits/" + visitID, Method: "GET"},
 			},
 		}
-		_ = repo.Create(ctx, card)
+		if err := repo.Create(ctx, card); err != nil {
+			slog.Error("failed to create visit prep insight", "error", err)
+		}
 	}
+}
+
+func derefStr(s *string) string {
+	if s == nil {
+		return ""
+	}
+	return *s
 }
 
 func (g *InsightGenerator) processNewLabs(ctx context.Context, userID uuid.UUID, repo *repository.InsightCardRepo) {
@@ -150,16 +170,19 @@ func (g *InsightGenerator) processNewLabs(ctx context.Context, userID uuid.UUID,
 	}
 
 	if abnormalCount > 0 {
+		body := fmt.Sprintf("%d of your lab results are outside normal ranges. Tap to understand what they mean and what you can do.", abnormalCount)
 		card := &entities.InsightCard{
 			UserID:   userID,
 			Type:     entities.InsightLabTrend,
-			Title:    "Abnormal lab results detected",
-			Body:     "Some of your recent lab results are outside normal ranges. Tap to review and discuss with your doctor.",
+			Title:    "Lab results need your attention",
+			Body:     body,
 			Severity: entities.SeverityWarning,
 			Actions: []entities.Action{
-				{Label: "View Labs", Endpoint: "/records", Method: "GET"},
+				{Label: "Review Labs", Endpoint: "/records", Method: "GET"},
 			},
 		}
-		_ = repo.Create(ctx, card)
+		if err := repo.Create(ctx, card); err != nil {
+			slog.Error("failed to create lab insight", "error", err)
+		}
 	}
 }

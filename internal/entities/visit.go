@@ -8,20 +8,44 @@ import (
 )
 
 type Visit struct {
-	ID           uuid.UUID       `json:"id"            db:"id"`
-	UserID       uuid.UUID       `json:"user_id"       db:"user_id"`
-	DoctorName   string          `json:"doctor_name"   db:"doctor_name"`
-	Specialty    string          `json:"specialty"     db:"specialty"`
-	ClinicName   string          `json:"clinic_name"   db:"clinic_name"`
-	VisitDate    *time.Time      `json:"visit_date"    db:"visit_date"`
-	VisitType    string          `json:"visit_type"    db:"visit_type"`
-	Reason       string          `json:"reason"        db:"reason"`
-	Status       string          `json:"status"        db:"status"`
-	PlanJSON     json.RawMessage `json:"plan_json"     db:"plan_json"`
-	OutcomeJSON  json.RawMessage `json:"outcome_json"  db:"outcome_json"`
-	FollowUpDate *time.Time      `json:"follow_up_date" db:"follow_up_date"`
-	CreatedAt    time.Time       `json:"created_at"    db:"created_at"`
-	UpdatedAt    time.Time       `json:"updated_at"    db:"updated_at"`
+	ID           uuid.UUID  `json:"id"            db:"id"`
+	UserID       uuid.UUID  `json:"user_id"       db:"user_id"`
+	DoctorName   *string    `json:"doctor_name"   db:"doctor_name"`
+	Specialty    *string    `json:"specialty"     db:"specialty"`
+	ClinicName   *string    `json:"clinic_name"   db:"clinic_name"`
+	VisitDate    *time.Time `json:"visit_date"    db:"visit_date"`
+	VisitType    *string    `json:"visit_type"    db:"visit_type"`
+	Reason       *string    `json:"reason"        db:"reason"`
+	Status       string     `json:"status"        db:"status"`
+	PlanJSON     NullJSON   `json:"plan"          db:"plan_json"`
+	OutcomeJSON  NullJSON   `json:"outcome"       db:"outcome_json"`
+	FollowUpDate *time.Time `json:"follow_up_date" db:"follow_up_date"`
+	CreatedAt    time.Time  `json:"created_at"    db:"created_at"`
+	UpdatedAt    time.Time  `json:"updated_at"    db:"updated_at"`
+}
+
+// NullJSON wraps json.RawMessage to handle SQL NULL scanning.
+type NullJSON json.RawMessage
+
+func (n *NullJSON) Scan(value any) error {
+	if value == nil {
+		*n = nil
+		return nil
+	}
+	switch v := value.(type) {
+	case []byte:
+		*n = append((*n)[:0], v...)
+	case string:
+		*n = NullJSON(v)
+	}
+	return nil
+}
+
+func (n NullJSON) MarshalJSON() ([]byte, error) {
+	if n == nil {
+		return []byte("null"), nil
+	}
+	return json.RawMessage(n).MarshalJSON()
 }
 
 const (

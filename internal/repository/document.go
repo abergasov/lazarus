@@ -44,6 +44,20 @@ func (r *DocumentRepo) ListByUser(ctx context.Context, userID uuid.UUID) ([]enti
 	return docs, err
 }
 
+func (r *DocumentRepo) ListPending(ctx context.Context) ([]entities.Document, error) {
+	var docs []entities.Document
+	err := r.db.SelectContext(ctx, &docs, `
+		SELECT * FROM documents WHERE parse_status = $1 ORDER BY created_at ASC
+	`, entities.ParseStatusPending)
+	return docs, err
+}
+
+func (r *DocumentRepo) Delete(ctx context.Context, id uuid.UUID, userID uuid.UUID) error {
+	_, err := r.db.ExecContext(ctx,
+		`DELETE FROM documents WHERE id = $1 AND user_id = $2`, id, userID)
+	return err
+}
+
 func (r *DocumentRepo) UpdateParseStatus(ctx context.Context, id uuid.UUID, status string) error {
 	now := time.Now()
 	_, err := r.db.ExecContext(ctx,

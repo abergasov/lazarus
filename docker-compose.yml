@@ -24,7 +24,9 @@ services:
       - app-network
 
   ui:
-    image: lazarus-ui:latest
+    build:
+      context: ./ui
+      dockerfile: Dockerfile_ui
     restart: unless-stopped
     networks:
       - app-network

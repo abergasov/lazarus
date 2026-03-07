@@ -3,6 +3,7 @@ package tools
 import (
 	"context"
 	"encoding/json"
+	"time"
 
 	"lazarus/internal/entities"
 	risksvc "lazarus/internal/service/risk"
@@ -49,7 +50,7 @@ func calcRiskTool(deps *Deps) *Tool {
 			}
 
 			input := risksvc.ASCVDInput{
-				Age:              int(demo.DateOfBirth.Year()),
+				Age:              int(time.Since(demo.DateOfBirth).Hours() / 8766),
 				Sex:              demo.Sex,
 				TotalCholesterol: a.TotalCholesterol,
 				HDL:              a.HDL,
