@@ -108,20 +108,20 @@ func (s *Service) Upload(ctx context.Context, userID uuid.UUID, file *multipart.
 	}
 
 	artifact := &entities.Artifact{
-		ID:           artifactID,
-		OwnerID:      userID,
-		Kind:         entities.ArtifactKindOther,
-		Status:       entities.ArtifactStatusQuarantined,
-		DeclaredMIME: file.Header.Get("Content-Type"),
-		DetectedMIME: detectedMIME,
-		OriginalName: SafeName(file.Filename),
-		ByteSize:     n,
-		SHA256Hex:    hex.EncodeToString(hasher.Sum(nil)),
-		Storage:      entities.ArtifactStorageS3,
-		Bucket:       s.cfg.S3.Bucket,
-		ObjectKey:    objectKey,
-		Summary:      "",
-		MetaJSON:     sql.Null[json.RawMessage]{},
+		ID:             artifactID,
+		OwnerID:        userID,
+		Kind:           entities.ArtifactKindOther,
+		Status:         entities.ArtifactStatusQuarantined,
+		DeclaredMIME:   file.Header.Get("Content-Type"),
+		DetectedMIME:   detectedMIME,
+		OriginalName:   SafeName(file.Filename),
+		ByteSize:       n,
+		SHA256Hex:      hex.EncodeToString(hasher.Sum(nil)),
+		Storage:        entities.ArtifactStorageS3,
+		Bucket:         s.cfg.S3.Bucket,
+		ObjectKey:      objectKey,
+		ContentSummary: "",
+		MetaJSON:       sql.Null[json.RawMessage]{},
 	}
 	if err = s.repo.CreateArtifact(ctx, artifactID, artifact); err != nil {
 		_ = s.bucketClient.Delete(ctx, objectKey)
