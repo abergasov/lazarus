@@ -81,6 +81,7 @@ type VisitQuestion struct {
 	Rationale string `json:"rationale"`
 	OrderRank int    `json:"order_rank"`
 	Asked     bool   `json:"asked"`
+	Answer    string `json:"answer,omitempty"`
 }
 
 type PushbackLine struct {

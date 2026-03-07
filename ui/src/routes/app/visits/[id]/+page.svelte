@@ -1,7 +1,7 @@
 <script lang="ts">
   import { page } from '$app/stores';
   import { goto } from '$app/navigation';
-  import { visits, documents } from '$lib/api';
+  import { visits, documents, questions as questionsApi } from '$lib/api';
   import type { Visit, Document as DocType, VisitPlan, VisitOutcome, ActionItem, Question, Priority, PushbackLine } from '$lib/types';
   import SegmentedControl from '$lib/components/SegmentedControl.svelte';
   import UploadZone from '$lib/components/UploadZone.svelte';
@@ -35,6 +35,100 @@
   let duringPushbackOpen = $state(false);
   let noteText = $state('');
   let noteSaving = $state(false);
+
+  // Answer recording (voice-to-text)
+  let expandedAnswer = $state<number | null>(null);
+  let recordingIdx = $state<number | null>(null);
+  let answerDrafts = $state<Record<number, string>>({});
+  let answerSaving = $state<number | null>(null);
+  let savedToBacklog = $state<Record<number, boolean>>({});
+  let micError = $state('');
+  let recognition: any = null;
+
+  // Cleanup SpeechRecognition on component destroy
+  $effect(() => {
+    return () => {
+      if (recognition) { recognition.stop(); recognition = null; }
+    };
+  });
+
+  function startRecording(idx: number) {
+    // Stop any existing recording first
+    if (recognition) { recognition.stop(); recognition = null; recordingIdx = null; }
+
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      expandedAnswer = idx;
+      return;
+    }
+    micError = '';
+    recognition = new SpeechRecognition();
+    recognition.continuous = true;
+    recognition.interimResults = true;
+    recognition.lang = navigator.language || 'en-US';
+    let finalTranscript = answerDrafts[idx] || '';
+
+    recognition.onresult = (e: any) => {
+      let interim = '';
+      for (let i = e.resultIndex; i < e.results.length; i++) {
+        if (e.results[i].isFinal) {
+          finalTranscript += e.results[i][0].transcript + ' ';
+        } else {
+          interim += e.results[i][0].transcript;
+        }
+      }
+      answerDrafts = { ...answerDrafts, [idx]: (finalTranscript + interim).trim() };
+    };
+
+    recognition.onerror = (e: any) => {
+      stopRecording();
+      if (e.error === 'not-allowed') micError = 'Microphone access denied. Check browser permissions.';
+      else if (e.error === 'no-speech') micError = 'No speech detected. Try again.';
+      else micError = 'Recording failed. Try typing instead.';
+      setTimeout(() => { micError = ''; }, 4000);
+    };
+    recognition.onend = () => { recordingIdx = null; };
+
+    expandedAnswer = idx;
+    recordingIdx = idx;
+    recognition.start();
+  }
+
+  function stopRecording() {
+    if (recognition) { recognition.stop(); recognition = null; }
+    recordingIdx = null;
+  }
+
+  async function saveAnswer(idx: number) {
+    if (!visit?.plan?.questions) return;
+    const text = answerDrafts[idx]?.trim();
+    if (!text) return;
+    answerSaving = idx;
+    try {
+      const updated: VisitPlan = {
+        ...visit.plan,
+        questions: visit.plan.questions.map((q, i) =>
+          i === idx ? { ...q, answer: text, asked: true } : q
+        ),
+      };
+      await visits.updatePlan(visit.id, updated);
+      await load();
+      expandedAnswer = null;
+      delete answerDrafts[idx];
+      answerDrafts = { ...answerDrafts };
+    } finally {
+      answerSaving = null;
+    }
+  }
+
+  async function saveToBacklog(idx: number) {
+    if (!visit?.plan?.questions || savedToBacklog[idx]) return;
+    const q = visit.plan.questions[idx];
+    try {
+      await questionsApi.create({ text: q.text, rationale: q.rationale || '', urgency: 'routine' });
+      savedToBacklog = { ...savedToBacklog, [idx]: true };
+    } catch {}
+  }
 
   // After phase
   let afterEditing = $state(false);
@@ -464,10 +558,61 @@
                   <span class="card-count">{questionsAsked} of {questionsTotal} asked</span>
                 </div>
                 {#each visit.plan.questions as q, i}
-                  <label class="check-row">
-                    <input type="checkbox" checked={q.asked} onchange={() => toggleQuestion(i)} />
-                    <span class="check-text" class:done={q.asked}>{q.text}</span>
-                  </label>
+                  <div class="question-block">
+                    <div class="check-row">
+                      <input type="checkbox" checked={q.asked} onchange={() => toggleQuestion(i)} />
+                      <span class="check-text" class:done={q.asked}>{q.text}</span>
+                      <div class="question-actions">
+                        <button
+                          class="icon-btn save-backlog-btn"
+                          class:saved={savedToBacklog[i]}
+                          title={savedToBacklog[i] ? 'Saved to backlog' : 'Save to question backlog'}
+                          onclick={() => saveToBacklog(i)}
+                          disabled={savedToBacklog[i]}
+                        >
+                          {#if savedToBacklog[i]}
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+                          {:else}
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>
+                          {/if}
+                        </button>
+                        <button
+                          class="icon-btn mic-btn"
+                          class:recording={recordingIdx === i}
+                          title={recordingIdx === i ? 'Stop recording' : 'Record answer'}
+                          onclick={() => recordingIdx === i ? stopRecording() : startRecording(i)}
+                        >
+                          {#if recordingIdx === i}
+                            <div class="mic-pulse"></div>
+                          {/if}
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
+                        </button>
+                      </div>
+                    </div>
+                    {#if q.answer && expandedAnswer !== i}
+                      <button class="answer-display" onclick={() => { expandedAnswer = i; answerDrafts = { ...answerDrafts, [i]: q.answer || '' }; }}>
+                        <span class="answer-label">Answer:</span> {q.answer}
+                      </button>
+                    {/if}
+                    {#if expandedAnswer === i}
+                      <div class="answer-input-area">
+                        {#if micError}<p class="mic-error">{micError}</p>{/if}
+                        <textarea
+                          class="answer-textarea"
+                          rows="2"
+                          placeholder={recordingIdx === i ? 'Listening...' : 'Type or tap mic to record answer...'}
+                          value={answerDrafts[i] ?? q.answer ?? ''}
+                          oninput={(e) => { answerDrafts = { ...answerDrafts, [i]: (e.target as HTMLTextAreaElement).value }; }}
+                        ></textarea>
+                        <div class="answer-actions">
+                          <button class="answer-cancel" onclick={() => { expandedAnswer = null; stopRecording(); }}>Cancel</button>
+                          <button class="answer-save" onclick={() => saveAnswer(i)} disabled={answerSaving === i || !(answerDrafts[i]?.trim())}>
+                            {answerSaving === i ? 'Saving...' : 'Save'}
+                          </button>
+                        </div>
+                      </div>
+                    {/if}
+                  </div>
                 {/each}
                 <!-- Inline add question -->
                 <form class="add-question-form" onsubmit={(e) => { e.preventDefault(); addQuestion(); }}>
@@ -570,10 +715,46 @@
                 <span class="card-count">{questionsAsked} of {questionsTotal} asked</span>
               </div>
               {#each visit.plan.questions as q, i}
-                <label class="check-row large">
-                  <input type="checkbox" checked={q.asked} onchange={() => toggleQuestion(i)} />
-                  <span class="check-text" class:done={q.asked}>{q.text}</span>
-                </label>
+                <div class="question-block">
+                  <div class="check-row large">
+                    <input type="checkbox" checked={q.asked} onchange={() => toggleQuestion(i)} />
+                    <span class="check-text" class:done={q.asked}>{q.text}</span>
+                    <button
+                      class="icon-btn mic-btn during-mic"
+                      class:recording={recordingIdx === i}
+                      title={recordingIdx === i ? 'Stop recording' : 'Record answer'}
+                      onclick={() => recordingIdx === i ? stopRecording() : startRecording(i)}
+                    >
+                      {#if recordingIdx === i}
+                        <div class="mic-pulse"></div>
+                      {/if}
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
+                    </button>
+                  </div>
+                  {#if q.answer && expandedAnswer !== i}
+                    <button class="answer-display" onclick={() => { expandedAnswer = i; answerDrafts = { ...answerDrafts, [i]: q.answer || '' }; }}>
+                      <span class="answer-label">Answer:</span> {q.answer}
+                    </button>
+                  {/if}
+                  {#if expandedAnswer === i}
+                    <div class="answer-input-area">
+                      {#if micError}<p class="mic-error">{micError}</p>{/if}
+                      <textarea
+                        class="answer-textarea"
+                        rows="2"
+                        placeholder={recordingIdx === i ? 'Listening...' : 'Type or tap mic to record answer...'}
+                        value={answerDrafts[i] ?? q.answer ?? ''}
+                        oninput={(e) => { answerDrafts = { ...answerDrafts, [i]: (e.target as HTMLTextAreaElement).value }; }}
+                      ></textarea>
+                      <div class="answer-actions">
+                        <button class="answer-cancel" onclick={() => { expandedAnswer = null; stopRecording(); }}>Cancel</button>
+                        <button class="answer-save" onclick={() => saveAnswer(i)} disabled={answerSaving === i || !(answerDrafts[i]?.trim())}>
+                          {answerSaving === i ? 'Saving...' : 'Save'}
+                        </button>
+                      </div>
+                    </div>
+                  {/if}
+                </div>
               {/each}
             </div>
           {/if}
@@ -1385,6 +1566,119 @@
   @media (max-width: 768px) {
     .fab { bottom: 80px; }
   }
+
+  /* ── Question block with answer recording ── */
+  .question-block {
+    border-bottom: 1px solid rgba(0,0,0,0.04);
+    padding-bottom: 2px;
+  }
+  .question-block:last-of-type { border-bottom: none; }
+  .question-block .check-row { border-bottom: none; }
+  .question-actions {
+    display: flex; gap: 2px; align-items: center;
+    flex-shrink: 0; margin-left: auto;
+  }
+  .icon-btn {
+    all: unset; cursor: pointer;
+    padding: 10px; border-radius: 8px;
+    color: #AEAEB2; display: flex; align-items: center;
+    transition: color 0.15s, background 0.15s;
+    min-width: 34px; min-height: 34px;
+    justify-content: center;
+  }
+  .icon-btn:hover { color: #636366; background: rgba(0,0,0,0.03); }
+  .icon-btn:disabled { cursor: default; }
+  .save-backlog-btn:hover { color: #0D9488; }
+  .save-backlog-btn.saved { color: #0D9488; }
+
+  /* Mic button */
+  .mic-btn {
+    position: relative;
+  }
+  .mic-btn.recording {
+    color: #DC2626;
+  }
+  .mic-btn.during-mic {
+    padding: 12px;
+    min-width: 44px; min-height: 44px;
+  }
+  .mic-pulse {
+    position: absolute;
+    inset: 0;
+    border-radius: 8px;
+    background: rgba(220,38,38,0.08);
+    animation: micPulse 1.5s ease-in-out infinite;
+  }
+  @keyframes micPulse {
+    0%, 100% { opacity: 0.4; transform: scale(1); }
+    50% { opacity: 1; transform: scale(1.15); }
+  }
+
+  /* Answer display */
+  .answer-display {
+    all: unset; cursor: pointer;
+    display: block;
+    padding: 6px 0 6px 28px;
+    font-size: 13px; color: #636366;
+    line-height: 1.5;
+    border-radius: 6px;
+    transition: background 0.15s;
+    text-align: left;
+    width: 100%;
+    box-sizing: border-box;
+  }
+  .answer-display:hover { background: rgba(0,0,0,0.02); }
+
+  /* Mic error */
+  .mic-error {
+    font-size: 12px; color: #DC2626;
+    margin: 0 0 6px; padding: 0;
+    animation: fadeIn 0.2s ease;
+  }
+  .answer-label {
+    font-weight: 600; color: #0D9488;
+    font-size: 11px; text-transform: uppercase;
+    letter-spacing: 0.3px;
+  }
+
+  /* Answer input area */
+  .answer-input-area {
+    padding: 4px 0 8px 28px;
+    animation: fadeIn 0.2s ease;
+  }
+  .answer-textarea {
+    width: 100%; padding: 10px 12px;
+    border-radius: 10px;
+    border: 1px solid rgba(13,148,136,0.2);
+    background: rgba(13,148,136,0.02);
+    font-size: 14px; color: #1C1C1E;
+    resize: vertical; outline: none;
+    font-family: inherit;
+    box-sizing: border-box;
+    transition: border-color 0.15s;
+  }
+  .answer-textarea:focus { border-color: #0D9488; }
+  .answer-textarea::placeholder { color: #AEAEB2; }
+  .answer-actions {
+    display: flex; gap: 8px; justify-content: flex-end;
+    margin-top: 6px;
+  }
+  .answer-cancel {
+    all: unset; cursor: pointer;
+    font-size: 13px; color: #636366;
+    padding: 6px 14px; border-radius: 8px;
+    transition: background 0.15s;
+  }
+  .answer-cancel:hover { background: rgba(0,0,0,0.03); }
+  .answer-save {
+    all: unset; cursor: pointer;
+    font-size: 13px; font-weight: 600; color: white;
+    padding: 6px 18px; border-radius: 8px;
+    background: #0D9488;
+    transition: opacity 0.15s;
+  }
+  .answer-save:hover { opacity: 0.9; }
+  .answer-save:disabled { opacity: 0.4; cursor: default; }
 
   /* ── Animations ── */
   .fade-in {

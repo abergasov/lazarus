@@ -15,7 +15,7 @@
   let convContextId = $state('');
   let conversationLabel = $state('');
   let showNewVisit = $state(false);
-  let newVisit = $state({ doctor_name: '', specialty: '', visit_date: '', reason: '' });
+  let newVisit = $state({ doctor_name: '', specialty: '', visit_date: '', visit_time: '', reason: '' });
 
   async function load() {
     try { data = await home.get(); }
@@ -41,10 +41,13 @@
 
   async function createVisit() {
     const body: any = { doctor_name: newVisit.doctor_name, specialty: newVisit.specialty, reason: newVisit.reason };
-    if (newVisit.visit_date) body.visit_date = new Date(newVisit.visit_date).toISOString();
+    if (newVisit.visit_date) {
+      const dateStr = newVisit.visit_date + (newVisit.visit_time ? 'T' + newVisit.visit_time : 'T09:00');
+      body.visit_date = new Date(dateStr).toISOString();
+    }
     const v = await visits.create(body);
     showNewVisit = false;
-    newVisit = { doctor_name: '', specialty: '', visit_date: '', reason: '' };
+    newVisit = { doctor_name: '', specialty: '', visit_date: '', visit_time: '', reason: '' };
     goto('/app/visits/' + v.id);
   }
 
@@ -105,7 +108,10 @@
         <form class="new-visit-form" onsubmit={(e) => { e.preventDefault(); createVisit(); }}>
           <input bind:value={newVisit.doctor_name} placeholder="Doctor name" required />
           <input bind:value={newVisit.specialty} placeholder="Specialty (e.g. Cardiologist)" />
-          <input type="datetime-local" bind:value={newVisit.visit_date} />
+          <div class="date-time-row">
+            <input type="date" bind:value={newVisit.visit_date} placeholder="Date" />
+            <input type="time" bind:value={newVisit.visit_time} placeholder="Time" />
+          </div>
           <input bind:value={newVisit.reason} placeholder="Reason for visit" />
           <div class="form-actions">
             <button type="button" class="cancel-btn" onclick={() => { showNewVisit = false; }}>Cancel</button>
@@ -229,6 +235,8 @@
   }
   .submit-btn:hover { opacity: 0.9; }
   .submit-btn:disabled { opacity: 0.4; cursor: default; }
+  .date-time-row { display: flex; gap: 8px; }
+  .date-time-row input { flex: 1; }
   .hint { font-size: 14px; color: var(--text3); text-align: center; padding: 20px 0; }
 
   .question-count {

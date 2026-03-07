@@ -28,7 +28,7 @@ export type VisitPlan = {
 };
 
 export type Priority = { item: string; evidence?: string[]; urgency: 'critical' | 'high' | 'routine' };
-export type Question = { text: string; rationale: string; order_rank: number; asked: boolean };
+export type Question = { text: string; rationale: string; order_rank: number; asked: boolean; answer?: string };
 export type PushbackLine = { trigger: string; response: string };
 
 export type VisitOutcome = {
