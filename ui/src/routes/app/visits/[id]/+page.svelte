@@ -65,7 +65,7 @@
     recognition = new SpeechRecognition();
     recognition.continuous = true;
     recognition.interimResults = true;
-    recognition.lang = navigator.language || 'en-US';
+    // Do not set recognition.lang — let the browser auto-detect the spoken language
     let finalTranscript = answerDrafts[idx] || '';
 
     recognition.onresult = (e: any) => {

@@ -105,7 +105,7 @@ func (g *InsightGenerator) processProfileUpdate(ctx context.Context, userID uuid
 
 func (g *InsightGenerator) processVisitPhase(ctx context.Context, userID uuid.UUID, visitID string, repo *repository.InsightCardRepo) {
 	visitRepo := repository.NewVisitRepo(g.db)
-	visit, err := visitRepo.Get(ctx, visitID)
+	visit, err := visitRepo.Get(ctx, visitID, userID)
 	if err != nil {
 		return
 	}
