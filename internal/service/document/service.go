@@ -82,14 +82,7 @@ func (s *Service) Upload(ctx context.Context, userID uuid.UUID, visitIDStr strin
 }
 
 func (s *Service) Get(ctx context.Context, id uuid.UUID, userID uuid.UUID) (*entities.Document, error) {
-	doc, err := s.docRepo.Get(ctx, id)
-	if err != nil {
-		return nil, err
-	}
-	if doc.UserID != userID {
-		return nil, fmt.Errorf("not found")
-	}
-	return doc, nil
+	return s.docRepo.Get(ctx, id, userID)
 }
 
 func (s *Service) ListByUser(ctx context.Context, userID uuid.UUID) ([]entities.Document, error) {
@@ -101,12 +94,9 @@ func (s *Service) Delete(ctx context.Context, id uuid.UUID, userID uuid.UUID) er
 }
 
 func (s *Service) DownloadFile(ctx context.Context, id uuid.UUID, userID uuid.UUID) (io.ReadCloser, string, string, error) {
-	doc, err := s.docRepo.Get(ctx, id)
+	doc, err := s.docRepo.Get(ctx, id, userID)
 	if err != nil {
 		return nil, "", "", err
-	}
-	if doc.UserID != userID {
-		return nil, "", "", fmt.Errorf("forbidden")
 	}
 	reader, err := s.bucket.Download(ctx, doc.StorageKey)
 	if err != nil {
@@ -169,7 +159,7 @@ type parsedDiag struct {
 func (s *Service) Parse(ctx context.Context, docID uuid.UUID) {
 	_ = s.docRepo.UpdateParseStatus(ctx, docID, entities.ParseStatusProcessing)
 
-	doc, err := s.docRepo.Get(ctx, docID)
+	doc, err := s.docRepo.GetInternal(ctx, docID)
 	if err != nil {
 		slog.Error("parse: get doc", "error", err, "doc_id", docID)
 		_ = s.docRepo.UpdateParseStatus(ctx, docID, entities.ParseStatusFailed)

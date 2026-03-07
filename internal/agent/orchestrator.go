@@ -159,7 +159,7 @@ func (o *Orchestrator) GetOrCreateSession(ctx context.Context, userID uuid.UUID,
 	if o.sessions.db != nil {
 		visitRepo := o.assembler.visitRepo
 		if visitRepo != nil {
-			if v, err := visitRepo.Get(ctx, visitIDStr); err == nil {
+			if v, err := visitRepo.Get(ctx, visitIDStr, userID); err == nil {
 				phase = v.Status
 			}
 		}

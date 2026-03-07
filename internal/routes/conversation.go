@@ -81,12 +81,9 @@ func (s *Server) handleGetConversation(c *fiber.Ctx, userID uuid.UUID) error {
 	}
 
 	repo := repository.NewConversationRepo(s.db)
-	conv, err := repo.Get(c.Context(), id)
+	conv, err := repo.Get(c.Context(), id, userID)
 	if err != nil {
 		return c.Status(404).JSON(fiber.Map{"error": "not found"})
-	}
-	if conv.UserID != userID {
-		return c.Status(403).JSON(fiber.Map{"error": "forbidden"})
 	}
 	return c.JSON(conv)
 }
@@ -119,12 +116,9 @@ func (s *Server) handleConversationMessage(c *fiber.Ctx, userID uuid.UUID) error
 	}
 
 	convRepo := repository.NewConversationRepo(s.db)
-	conv, err := convRepo.Get(c.Context(), convID)
+	conv, err := convRepo.Get(c.Context(), convID, userID)
 	if err != nil {
 		return c.Status(404).JSON(fiber.Map{"error": "not found"})
-	}
-	if conv.UserID != userID {
-		return c.Status(403).JSON(fiber.Map{"error": "forbidden"})
 	}
 
 	// Save user message
@@ -133,7 +127,7 @@ func (s *Server) handleConversationMessage(c *fiber.Ctx, userID uuid.UUID) error
 		Content:   req.Content,
 		Timestamp: time.Now(),
 	}
-	if err := convRepo.AppendMessage(c.Context(), convID, userMsg); err != nil {
+	if err := convRepo.AppendMessage(c.Context(), convID, userID, userMsg); err != nil {
 		return c.Status(500).JSON(fiber.Map{"error": "failed to save message"})
 	}
 
@@ -202,7 +196,7 @@ func (s *Server) handleConversationMessage(c *fiber.Ctx, userID uuid.UUID) error
 				Content:   fullResponse,
 				Timestamp: time.Now(),
 			}
-			_ = convRepo.AppendMessage(context.Background(), convID, assistantMsg)
+			_ = convRepo.AppendMessage(context.Background(), convID, userID, assistantMsg)
 		}
 	})
 
@@ -218,7 +212,7 @@ func (s *Server) buildRichContext(ctx context.Context, userID uuid.UUID, context
 			return ""
 		}
 		repo := repository.NewInsightCardRepo(s.db)
-		card, err := repo.GetByID(ctx, id)
+		card, err := repo.GetByID(ctx, id, userID)
 		if err != nil {
 			return ""
 		}

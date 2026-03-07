@@ -33,9 +33,9 @@ func (r *VisitRepo) Create(ctx context.Context, v *entities.Visit) error {
 	return err
 }
 
-func (r *VisitRepo) Get(ctx context.Context, id string) (*entities.Visit, error) {
+func (r *VisitRepo) Get(ctx context.Context, id string, userID uuid.UUID) (*entities.Visit, error) {
 	var v entities.Visit
-	err := r.db.GetContext(ctx, &v, `SELECT * FROM visits WHERE id = $1`, id)
+	err := r.db.GetContext(ctx, &v, `SELECT * FROM visits WHERE id = $1 AND user_id = $2`, id, userID)
 	if err != nil {
 		return nil, fmt.Errorf("get visit: %w", err)
 	}
@@ -50,44 +50,44 @@ func (r *VisitRepo) ListByUser(ctx context.Context, userID uuid.UUID) ([]entitie
 	return visits, err
 }
 
-func (r *VisitRepo) UpdatePhase(ctx context.Context, id string, status string) error {
+func (r *VisitRepo) UpdatePhase(ctx context.Context, id string, userID uuid.UUID, status string) error {
 	_, err := r.db.ExecContext(ctx,
-		`UPDATE visits SET status = $1, updated_at = NOW() WHERE id = $2`,
-		status, id)
+		`UPDATE visits SET status = $1, updated_at = NOW() WHERE id = $2 AND user_id = $3`,
+		status, id, userID)
 	return err
 }
 
-func (r *VisitRepo) UpdatePlan(ctx context.Context, id string, planJSON []byte) error {
+func (r *VisitRepo) UpdatePlan(ctx context.Context, id string, userID uuid.UUID, planJSON []byte) error {
 	_, err := r.db.ExecContext(ctx,
-		`UPDATE visits SET plan_json = $1, updated_at = NOW() WHERE id = $2`,
-		planJSON, id)
+		`UPDATE visits SET plan_json = $1, updated_at = NOW() WHERE id = $2 AND user_id = $3`,
+		planJSON, id, userID)
 	return err
 }
 
-func (r *VisitRepo) UpdateOutcome(ctx context.Context, id string, outcomeJSON []byte) error {
+func (r *VisitRepo) UpdateOutcome(ctx context.Context, id string, userID uuid.UUID, outcomeJSON []byte) error {
 	_, err := r.db.ExecContext(ctx,
-		`UPDATE visits SET outcome_json = $1, updated_at = NOW() WHERE id = $2`,
-		outcomeJSON, id)
+		`UPDATE visits SET outcome_json = $1, updated_at = NOW() WHERE id = $2 AND user_id = $3`,
+		outcomeJSON, id, userID)
 	return err
 }
 
-func (r *VisitRepo) AppendNote(ctx context.Context, id string, note entities.VisitNote) error {
+func (r *VisitRepo) AppendNote(ctx context.Context, id string, userID uuid.UUID, note entities.VisitNote) error {
 	noteJSON, err := json.Marshal(note)
 	if err != nil {
 		return err
 	}
 	_, err = r.db.ExecContext(ctx,
-		`UPDATE visits SET notes_json = COALESCE(notes_json, '[]'::jsonb) || $1::jsonb, updated_at = NOW() WHERE id = $2`,
-		noteJSON, id)
+		`UPDATE visits SET notes_json = COALESCE(notes_json, '[]'::jsonb) || $1::jsonb, updated_at = NOW() WHERE id = $2 AND user_id = $3`,
+		noteJSON, id, userID)
 	return err
 }
 
-func (r *VisitRepo) Delete(ctx context.Context, id string) error {
-	// Clean up related data first
-	_, _ = r.db.ExecContext(ctx, `DELETE FROM agent_sessions WHERE visit_id = $1`, id)
-	_, _ = r.db.ExecContext(ctx, `UPDATE documents SET visit_id = NULL WHERE visit_id = $1`, id)
-	_, _ = r.db.ExecContext(ctx, `DELETE FROM conversations WHERE context_type = 'visit' AND context_id = $1`, id)
-	_, err := r.db.ExecContext(ctx, `DELETE FROM visits WHERE id = $1`, id)
+func (r *VisitRepo) Delete(ctx context.Context, id string, userID uuid.UUID) error {
+	// Clean up related data first (scoped to user)
+	_, _ = r.db.ExecContext(ctx, `DELETE FROM agent_sessions WHERE visit_id = $1 AND user_id = $2`, id, userID)
+	_, _ = r.db.ExecContext(ctx, `UPDATE documents SET visit_id = NULL WHERE visit_id = $1 AND user_id = $2`, id, userID)
+	_, _ = r.db.ExecContext(ctx, `DELETE FROM conversations WHERE context_type = 'visit' AND context_id = $1 AND user_id = $2`, id, userID)
+	_, err := r.db.ExecContext(ctx, `DELETE FROM visits WHERE id = $1 AND user_id = $2`, id, userID)
 	return err
 }
 

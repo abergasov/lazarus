@@ -58,20 +58,20 @@ func (r *InsightCardRepo) ListActive(ctx context.Context, userID uuid.UUID) ([]e
 	return cards, nil
 }
 
-func (r *InsightCardRepo) Dismiss(ctx context.Context, id uuid.UUID) error {
-	_, err := r.db.ExecContext(ctx, `UPDATE insight_cards SET dismissed_at = NOW() WHERE id = $1`, id)
+func (r *InsightCardRepo) Dismiss(ctx context.Context, id uuid.UUID, userID uuid.UUID) error {
+	_, err := r.db.ExecContext(ctx, `UPDATE insight_cards SET dismissed_at = NOW() WHERE id = $1 AND user_id = $2`, id, userID)
 	return err
 }
 
-func (r *InsightCardRepo) GetByID(ctx context.Context, id uuid.UUID) (*entities.InsightCard, error) {
+func (r *InsightCardRepo) GetByID(ctx context.Context, id uuid.UUID, userID uuid.UUID) (*entities.InsightCard, error) {
 	var row struct {
 		entities.InsightCard
 		ActionsRaw []byte `db:"actions"`
 	}
 	err := r.db.GetContext(ctx, &row, `
 		SELECT id, user_id, type, title, body, severity, context_type, context_id, actions, dismissed_at, created_at
-		FROM insight_cards WHERE id = $1
-	`, id)
+		FROM insight_cards WHERE id = $1 AND user_id = $2
+	`, id, userID)
 	if err != nil {
 		return nil, err
 	}

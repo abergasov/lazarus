@@ -30,7 +30,14 @@ func (r *DocumentRepo) Create(ctx context.Context, doc *entities.Document) error
 	return err
 }
 
-func (r *DocumentRepo) Get(ctx context.Context, id uuid.UUID) (*entities.Document, error) {
+func (r *DocumentRepo) Get(ctx context.Context, id uuid.UUID, userID uuid.UUID) (*entities.Document, error) {
+	var doc entities.Document
+	err := r.db.GetContext(ctx, &doc, `SELECT * FROM documents WHERE id = $1 AND user_id = $2`, id, userID)
+	return &doc, err
+}
+
+// GetInternal fetches a document by ID without user scoping, for internal background processing only.
+func (r *DocumentRepo) GetInternal(ctx context.Context, id uuid.UUID) (*entities.Document, error) {
 	var doc entities.Document
 	err := r.db.GetContext(ctx, &doc, `SELECT * FROM documents WHERE id = $1`, id)
 	return &doc, err

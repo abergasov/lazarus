@@ -94,7 +94,7 @@ func (a *Assembler) Build(ctx context.Context, session *Session) (*AssembledCont
 	})
 	g.Go(func() error {
 		if session.VisitID != uuid.Nil {
-			visit, err := a.visitRepo.Get(gctx, session.VisitID.String())
+			visit, err := a.visitRepo.Get(gctx, session.VisitID.String(), session.UserID)
 			if err == nil {
 				ac.Visit = visit
 			}

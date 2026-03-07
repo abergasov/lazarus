@@ -33,7 +33,7 @@ func (r *ConversationRepo) Create(ctx context.Context, conv *entities.Conversati
 	return err
 }
 
-func (r *ConversationRepo) Get(ctx context.Context, id uuid.UUID) (*entities.Conversation, error) {
+func (r *ConversationRepo) Get(ctx context.Context, id uuid.UUID, userID uuid.UUID) (*entities.Conversation, error) {
 	var row struct {
 		ID          uuid.UUID `db:"id"`
 		UserID      uuid.UUID `db:"user_id"`
@@ -43,7 +43,7 @@ func (r *ConversationRepo) Get(ctx context.Context, id uuid.UUID) (*entities.Con
 		CreatedAt   time.Time `db:"created_at"`
 		UpdatedAt   time.Time `db:"updated_at"`
 	}
-	err := r.db.GetContext(ctx, &row, `SELECT id, user_id, context_type, context_id, messages, created_at, updated_at FROM conversations WHERE id = $1`, id)
+	err := r.db.GetContext(ctx, &row, `SELECT id, user_id, context_type, context_id, messages, created_at, updated_at FROM conversations WHERE id = $1 AND user_id = $2`, id, userID)
 	if err != nil {
 		return nil, err
 	}
@@ -60,7 +60,7 @@ func (r *ConversationRepo) Get(ctx context.Context, id uuid.UUID) (*entities.Con
 	return conv, nil
 }
 
-func (r *ConversationRepo) AppendMessage(ctx context.Context, id uuid.UUID, msg entities.ConversationMessage) error {
+func (r *ConversationRepo) AppendMessage(ctx context.Context, id uuid.UUID, userID uuid.UUID, msg entities.ConversationMessage) error {
 	msgJSON, err := json.Marshal(msg)
 	if err != nil {
 		return err
@@ -68,8 +68,8 @@ func (r *ConversationRepo) AppendMessage(ctx context.Context, id uuid.UUID, msg 
 	_, err = r.db.ExecContext(ctx, `
 		UPDATE conversations
 		SET messages = messages || $2::jsonb, updated_at = NOW()
-		WHERE id = $1
-	`, id, msgJSON)
+		WHERE id = $1 AND user_id = $3
+	`, id, msgJSON, userID)
 	return err
 }
 

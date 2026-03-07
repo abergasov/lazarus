@@ -102,12 +102,9 @@ func (s *Server) handleListVisits(c *fiber.Ctx, userID uuid.UUID) error {
 func (s *Server) handleGetVisit(c *fiber.Ctx, userID uuid.UUID) error {
 	id := c.Params("id")
 	repo := repository.NewVisitRepo(s.db)
-	v, err := repo.Get(c.Context(), id)
+	v, err := repo.Get(c.Context(), id, userID)
 	if err != nil {
 		return c.Status(404).JSON(fiber.Map{"error": "visit not found"})
-	}
-	if v.UserID != userID {
-		return c.Status(403).JSON(fiber.Map{"error": "forbidden"})
 	}
 	return c.JSON(v)
 }
@@ -122,12 +119,11 @@ func (s *Server) handleUpdateVisitPhase(c *fiber.Ctx, userID uuid.UUID) error {
 	}
 
 	repo := repository.NewVisitRepo(s.db)
-	v, err := repo.Get(c.Context(), id)
-	if err != nil || v.UserID != userID {
+	if _, err := repo.Get(c.Context(), id, userID); err != nil {
 		return c.Status(404).JSON(fiber.Map{"error": "not found"})
 	}
 
-	if err := repo.UpdatePhase(c.Context(), id, body.Status); err != nil {
+	if err := repo.UpdatePhase(c.Context(), id, userID, body.Status); err != nil {
 		return c.Status(500).JSON(fiber.Map{"error": err.Error()})
 	}
 
@@ -142,8 +138,8 @@ func (s *Server) handleUpdateVisitPhase(c *fiber.Ctx, userID uuid.UUID) error {
 func (s *Server) handleUpdateVisitPlan(c *fiber.Ctx, userID uuid.UUID) error {
 	id := c.Params("id")
 	repo := repository.NewVisitRepo(s.db)
-	v, err := repo.Get(c.Context(), id)
-	if err != nil || v.UserID != userID {
+	_, err := repo.Get(c.Context(), id, userID)
+	if err != nil {
 		return c.Status(404).JSON(fiber.Map{"error": "not found"})
 	}
 
@@ -152,7 +148,7 @@ func (s *Server) handleUpdateVisitPlan(c *fiber.Ctx, userID uuid.UUID) error {
 		return c.Status(400).JSON(fiber.Map{"error": "body required"})
 	}
 
-	if err := repo.UpdatePlan(c.Context(), id, body); err != nil {
+	if err := repo.UpdatePlan(c.Context(), id, userID, body); err != nil {
 		return c.Status(500).JSON(fiber.Map{"error": err.Error()})
 	}
 	return c.JSON(fiber.Map{"ok": true})
@@ -161,8 +157,8 @@ func (s *Server) handleUpdateVisitPlan(c *fiber.Ctx, userID uuid.UUID) error {
 func (s *Server) handleUpdateVisitOutcome(c *fiber.Ctx, userID uuid.UUID) error {
 	id := c.Params("id")
 	repo := repository.NewVisitRepo(s.db)
-	v, err := repo.Get(c.Context(), id)
-	if err != nil || v.UserID != userID {
+	_, err := repo.Get(c.Context(), id, userID)
+	if err != nil {
 		return c.Status(404).JSON(fiber.Map{"error": "not found"})
 	}
 
@@ -171,7 +167,7 @@ func (s *Server) handleUpdateVisitOutcome(c *fiber.Ctx, userID uuid.UUID) error 
 		return c.Status(400).JSON(fiber.Map{"error": "body required"})
 	}
 
-	if err := repo.UpdateOutcome(c.Context(), id, body); err != nil {
+	if err := repo.UpdateOutcome(c.Context(), id, userID, body); err != nil {
 		return c.Status(500).JSON(fiber.Map{"error": err.Error()})
 	}
 	return c.JSON(fiber.Map{"ok": true})
@@ -180,8 +176,8 @@ func (s *Server) handleUpdateVisitOutcome(c *fiber.Ctx, userID uuid.UUID) error 
 func (s *Server) handleAddVisitNote(c *fiber.Ctx, userID uuid.UUID) error {
 	id := c.Params("id")
 	repo := repository.NewVisitRepo(s.db)
-	v, err := repo.Get(c.Context(), id)
-	if err != nil || v.UserID != userID {
+	_, err := repo.Get(c.Context(), id, userID)
+	if err != nil {
 		return c.Status(404).JSON(fiber.Map{"error": "not found"})
 	}
 
@@ -193,7 +189,7 @@ func (s *Server) handleAddVisitNote(c *fiber.Ctx, userID uuid.UUID) error {
 	}
 
 	note := entities.VisitNote{Text: body.Text, Timestamp: time.Now()}
-	if err := repo.AppendNote(c.Context(), id, note); err != nil {
+	if err := repo.AppendNote(c.Context(), id, userID, note); err != nil {
 		return c.Status(500).JSON(fiber.Map{"error": err.Error()})
 	}
 	return c.Status(201).JSON(note)
@@ -202,11 +198,11 @@ func (s *Server) handleAddVisitNote(c *fiber.Ctx, userID uuid.UUID) error {
 func (s *Server) handleDeleteVisit(c *fiber.Ctx, userID uuid.UUID) error {
 	id := c.Params("id")
 	repo := repository.NewVisitRepo(s.db)
-	v, err := repo.Get(c.Context(), id)
-	if err != nil || v.UserID != userID {
+	_, err := repo.Get(c.Context(), id, userID)
+	if err != nil {
 		return c.Status(404).JSON(fiber.Map{"error": "not found"})
 	}
-	if err := repo.Delete(c.Context(), id); err != nil {
+	if err := repo.Delete(c.Context(), id, userID); err != nil {
 		return c.Status(500).JSON(fiber.Map{"error": err.Error()})
 	}
 	return c.SendStatus(204)
