@@ -21,6 +21,12 @@ var (
 		"user_name",
 		"created_at",
 		"updated_at",
+
+		"date_of_birth",
+		"sex",
+		"height_cm",
+		"weight_kg",
+		"smoker",
 	}
 	userColumnsStr = strings.Join(userColumns, ",")
 )

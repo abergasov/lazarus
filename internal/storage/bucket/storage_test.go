@@ -2,7 +2,6 @@ package bucket_test
 
 import (
 	"bytes"
-	"io"
 	testhelpers "lazarus/internal/test_helpers"
 	"strings"
 	"testing"
@@ -27,12 +26,16 @@ func TestClientCRUD(t *testing.T) {
 	require.NoError(t, container.BucketClient.Upload(container.Ctx, key, bytes.NewReader(payload), int64(len(payload))))
 
 	// then
-	rc, err := container.BucketClient.Download(container.Ctx, key)
-	require.NoError(t, err)
-	t.Cleanup(func() {
-		require.NoError(t, rc.Close())
-	})
-	got, err := io.ReadAll(rc)
+	got, err := container.BucketClient.DownloadBytes(container.Ctx, key)
 	require.NoError(t, err)
 	require.Equal(t, payload, got)
+
+	t.Run("should delete object", func(t *testing.T) {
+		// when
+		require.NoError(t, container.BucketClient.Delete(container.Ctx, key))
+
+		// then
+		_, err = container.BucketClient.Download(container.Ctx, key)
+		require.Error(t, err)
+	})
 }
