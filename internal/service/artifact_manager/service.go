@@ -97,14 +97,12 @@ func (s *Service) Upload(ctx context.Context, userID uuid.UUID, file *multipart.
 	if _, err = tmp.Seek(0, io.SeekStart); err != nil {
 		return nil, fmt.Errorf("rewind temp file for upload: %w", err)
 	}
-	artifactID := uuid.New()
-	objectKey := fmt.Sprintf("%s/%s", userID.String(), artifactID.String())
+	objectKey := fmt.Sprintf("%s/%s", userID.String(), uuid.NewString())
 	if err = s.bucketClient.Upload(ctx, objectKey, tmp, n); err != nil {
 		return nil, fmt.Errorf("upload to bucket: %w", err)
 	}
 
 	artifact := &entities.Artifact{
-		ID:             artifactID,
 		OwnerID:        userID,
 		Kind:           entities.ArtifactKindOther,
 		Status:         entities.ArtifactStatusQuarantined,
@@ -119,11 +117,12 @@ func (s *Service) Upload(ctx context.Context, userID uuid.UUID, file *multipart.
 		ContentSummary: "",
 		MetaJSON:       sql.Null[json.RawMessage]{},
 	}
-	if err = s.repo.CreateArtifact(ctx, artifactID, artifact); err != nil {
+	artifactID, err := s.repo.CreateArtifact(ctx, artifact)
+	if err != nil {
 		_ = s.bucketClient.Delete(ctx, objectKey)
 		return nil, fmt.Errorf("create artifact record: %w", err)
 	}
-	return artifact, nil
+	return s.repo.GetArtifactByID(ctx, userID, artifactID)
 }
 
 func (s *Service) GetArtifactByID(ctx context.Context, artifactID, userID uuid.UUID) (*entities.Artifact, error) {

@@ -36,7 +36,8 @@ var (
 	artifactColumnsStr = strings.Join(artifactColumns, ",")
 )
 
-func (r *Repo) CreateArtifact(ctx context.Context, artifactID uuid.UUID, a *entities.Artifact) error {
+func (r *Repo) CreateArtifact(ctx context.Context, a *entities.Artifact) (uuid.UUID, error) {
+	artifactID := uuid.New()
 	q, p := utils.GenerateInsertSQL(TableArtifacts, map[string]any{
 		"a_id":               artifactID.String(),
 		"owner_id":           a.OwnerID,
@@ -56,7 +57,7 @@ func (r *Repo) CreateArtifact(ctx context.Context, artifactID uuid.UUID, a *enti
 		"meta_json":          a.MetaJSON,
 	})
 	_, err := r.db.Client().ExecContext(ctx, q, p...)
-	return err
+	return artifactID, err
 }
 
 func (r *Repo) UpdateArtifactStatus(ctx context.Context, id uuid.UUID, st entities.ArtifactStatus) error {
