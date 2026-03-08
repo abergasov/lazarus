@@ -1,6 +1,7 @@
 package entities
 
 import (
+	"database/sql"
 	"time"
 
 	"github.com/golang-jwt/jwt/v4"
@@ -18,16 +19,16 @@ type GoogleUser struct {
 }
 
 type User struct {
-	ID          uuid.UUID `db:"u_id" json:"id"`
-	Email       string    `db:"email" json:"email"`
-	UserName    string    `db:"user_name" json:"user_name"`
-	CreatedAt   time.Time `db:"created_at" json:"created_at"`
-	UpdatedAt   time.Time `db:"updated_at" json:"updated_at"`
-	DateOfBirth time.Time `db:"date_of_birth" json:"date_of_birth"`
-	Sex         string    `db:"sex" json:"sex"` // "M" | "F"
-	HeightCM    float64   `db:"height_cm" json:"height_cm"`
-	WeightKG    float64   `db:"weight_kg" json:"weight_kg"`
-	Smoker      bool      `db:"smoker" json:"smoker"`
+	ID          uuid.UUID     `db:"u_id" json:"id"`
+	Email       string        `db:"email" json:"email"`
+	UserName    string        `db:"user_name" json:"user_name"`
+	CreatedAt   time.Time     `db:"created_at" json:"created_at"`
+	UpdatedAt   time.Time     `db:"updated_at" json:"updated_at"`
+	DateOfBirth sql.NullTime  `db:"date_of_birth" json:"date_of_birth"`
+	Sex         sql.NullByte  `db:"sex" json:"sex"` // "M" | "F"
+	HeightCM    sql.NullInt64 `db:"height_cm" json:"height_cm"`
+	WeightKG    sql.NullInt64 `db:"weight_kg" json:"weight_kg"`
+	Smoker      sql.NullBool  `db:"smoker" json:"smoker"`
 }
 
 type UserJWT struct {
