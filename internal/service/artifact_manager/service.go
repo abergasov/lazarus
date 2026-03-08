@@ -119,7 +119,7 @@ func (s *Service) Upload(ctx context.Context, userID uuid.UUID, file *multipart.
 		ContentSummary: "",
 		MetaJSON:       sql.Null[json.RawMessage]{},
 	}
-	if err = s.repo.CreateArtifact(ctx, artifactID, artifact); err != nil {
+	if err = s.repo.CreateArtifact(ctx, artifact); err != nil {
 		_ = s.bucketClient.Delete(ctx, objectKey)
 		return nil, fmt.Errorf("create artifact record: %w", err)
 	}

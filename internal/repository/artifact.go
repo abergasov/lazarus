@@ -36,9 +36,9 @@ var (
 	artifactColumnsStr = strings.Join(artifactColumns, ",")
 )
 
-func (r *Repo) CreateArtifact(ctx context.Context, artifactID uuid.UUID, a *entities.Artifact) error {
+func (r *Repo) CreateArtifact(ctx context.Context, a *entities.Artifact) error {
 	q, p := utils.GenerateInsertSQL(TableArtifacts, map[string]any{
-		"a_id":               artifactID.String(),
+		"a_id":               a.ID.String(),
 		"owner_id":           a.OwnerID,
 		"kind":               a.Kind,
 		"status":             entities.ArtifactStatusQuarantined,

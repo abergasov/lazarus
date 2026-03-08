@@ -17,7 +17,7 @@ func TestArtifactCrud(t *testing.T) {
 	// when
 	artifact := seed.NewArtifactBuilder(user.ID).Build()
 	artifactID := artifact.ID
-	require.NoError(t, container.Repo.CreateArtifact(container.Ctx, artifactID, artifact))
+	require.NoError(t, container.Repo.CreateArtifact(container.Ctx, artifact))
 	require.NotNil(t, artifact)
 
 	// then

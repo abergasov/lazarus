@@ -56,7 +56,7 @@ func (b *ArtifactBuilder) PopulateTests(t *testing.T, cnt *testhelpers.TestConta
 	ctx, cancel := context.WithTimeout(cnt.Ctx, 10*time.Second)
 	defer cancel()
 	artifact := b.Build()
-	require.NoError(t, cnt.Repo.CreateArtifact(ctx, artifact.ID, artifact))
+	require.NoError(t, cnt.Repo.CreateArtifact(ctx, artifact))
 	artifactDB, err := cnt.Repo.GetArtifactByID(ctx, artifact.OwnerID, artifact.ID)
 	require.NoError(t, err)
 	require.NotNil(t, artifactDB)
