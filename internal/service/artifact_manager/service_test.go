@@ -48,10 +48,8 @@ type testCase struct {
 	filename       string
 	contentType    string
 	payload        []byte
-	repoErr        error
 	wantErr        string
 	wantUpload     bool
-	wantDelete     bool
 	wantSafeName   string
 	wantDetectMIME string
 }
@@ -98,14 +96,15 @@ func TestServiceUploadPositive(t *testing.T) {
 			wantSafeName:   "report.txt",
 			wantDetectMIME: "text/plain; charset=utf-8",
 		},
-		//"malicious filename sanitized": {
-		//	filename:       "..\\..//evil\x00name?.pdf",
-		//	contentType:    "application/pdf",
-		//	payload:        []byte("%PDF-1.4\nbody"),
-		//	wantUpload:     true,
-		//	wantSafeName:   "....__evilname_.pdf",
-		//	wantDetectMIME: "application/pdf",
-		//},
+		// get error during creation, need to check that on router we will get same func
+		// "malicious filename sanitized": {
+		// 	 filename:       "..\\..//evil\x00name?.pdf",
+		// 	 contentType:    "application/pdf",
+		// 	 payload:        []byte("%PDF-1.4\nbody"),
+		// 	 wantUpload:     true,
+		// 	 wantSafeName:   "....__evilname_.pdf",
+		// 	 wantDetectMIME: "application/pdf",
+		// },
 		"content type spoofing detected": {
 			filename:       "image.png",
 			contentType:    "image/png",

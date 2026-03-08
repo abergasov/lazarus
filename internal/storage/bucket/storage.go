@@ -77,7 +77,7 @@ func (c *Client) DownloadBytes(ctx context.Context, path string) ([]byte, error)
 	if err != nil {
 		return nil, fmt.Errorf("download object: %w", err)
 	}
-	defer r.Close()
+	defer r.Close() //nolint:errcheck // it ok
 
 	b, err := io.ReadAll(r)
 	if err != nil {
