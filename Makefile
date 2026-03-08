@@ -1,4 +1,4 @@
-PROJECT_NAME:=lazarus
+PROJECT_NAME:=lazarus_prototype
 FILE_HASH := $(shell git rev-parse HEAD)
 GOLANGCI_LINT := $(shell command -v golangci-lint 2> /dev/null)
 
