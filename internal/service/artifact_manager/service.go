@@ -135,6 +135,18 @@ func (s *Service) ListArtifactsByUser(ctx context.Context, userID uuid.UUID) ([]
 }
 
 func (s *Service) DeleteArtifact(ctx context.Context, artifactID, userID uuid.UUID) error {
+	artifact, err := s.repo.GetArtifactByID(ctx, userID, artifactID)
+	if err != nil {
+		return fmt.Errorf("get artifact: %w", err)
+	}
+	if artifact == nil {
+		return s.repo.DeleteArtifact(ctx, userID, artifactID)
+	}
+	if artifact.ObjectKey != "" {
+		if err = s.bucketClient.Delete(ctx, artifact.ObjectKey); err != nil {
+			return fmt.Errorf("failed to delete artifact object from bucket: %w", err)
+		}
+	}
 	return s.repo.DeleteArtifact(ctx, userID, artifactID)
 }
 
