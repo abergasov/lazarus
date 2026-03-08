@@ -6,6 +6,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"errors"
+	"lazarus/internal/entities"
 	"lazarus/internal/service/artifact_manager"
 	testhelpers "lazarus/internal/test_helpers"
 	"lazarus/internal/test_helpers/seed"
@@ -142,8 +143,8 @@ func TestServiceUploadPositive(t *testing.T) {
 		require.Equal(t, tt.contentType, got.DeclaredMIME)
 		require.Equal(t, tt.wantDetectMIME, got.DetectedMIME)
 		require.Equal(t, int64(len(tt.payload)), got.ByteSize)
-		require.Equal(t, "s3", got.Storage)
-		require.Equal(t, "test-bucket", got.Bucket)
+		require.Equal(t, entities.ArtifactStorageS3, got.Storage)
+		require.Equal(t, container.Cfg.S3.Bucket, got.Bucket)
 		require.NotEmpty(t, got.ObjectKey)
 
 		sum := sha256.Sum256(tt.payload)

@@ -36,7 +36,7 @@ type TestContainer struct {
 
 func GetClean(t *testing.T) *TestContainer {
 	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Minute)
-	conf := getTestConfig()
+	conf := getTestConfig(t)
 	prepareTestDB(ctx, t, &conf.ConfigDB)
 
 	dbConnect, err := database.InitDBConnect(ctx, &conf.ConfigDB, guessMigrationDir(t))
@@ -56,6 +56,7 @@ func GetClean(t *testing.T) *TestContainer {
 	// service init
 	srvAuth := authorization.NewService(ctx, appLog, conf, repo)
 	srvUser := user.NewService(ctx, appLog, conf, repo)
+	srvArtifactManager := artifact_manager.NewService(ctx, appLog, conf, repo, storageClient)
 	return &TestContainer{
 		Ctx:    ctx,
 		Cfg:    conf,
@@ -66,8 +67,9 @@ func GetClean(t *testing.T) *TestContainer {
 
 		Repo: repo,
 
-		ServiceAuth: srvAuth,
-		ServiceUser: srvUser,
+		ServiceAuth:            srvAuth,
+		ServiceUser:            srvUser,
+		ServiceArtifactManager: srvArtifactManager,
 	}
 }
 
@@ -89,7 +91,7 @@ func prepareTestDB(ctx context.Context, t *testing.T, cnf *config.DBConf) {
 	}
 }
 
-func getTestConfig() *config.AppConfig {
+func getTestConfig(t *testing.T) *config.AppConfig {
 	return &config.AppConfig{
 		AppPort: 0,
 		ConfigDB: config.DBConf{
@@ -100,6 +102,8 @@ func getTestConfig() *config.AppConfig {
 			DBName:         "lazarus_test",
 			MaxConnections: 10,
 		},
+		MaxUploadSizeBytes: 1024,
+		RawUploadsDir:      t.TempDir(),
 		S3: &bucket.S3Conf{
 			Region:          "us-east-1",
 			Endpoint:        "http://127.0.0.1:9000",
