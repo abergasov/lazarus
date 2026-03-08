@@ -21,6 +21,7 @@ type ArtifactBuilder struct {
 func NewArtifactBuilder(userID uuid.UUID) *ArtifactBuilder {
 	return &ArtifactBuilder{
 		artifact: &entities.Artifact{
+			ID:           uuid.New(),
 			OwnerID:      userID,
 			Kind:         entities.ArtifactKindPDF,
 			Status:       entities.ArtifactStatusQuarantined,
@@ -54,10 +55,10 @@ func (b *ArtifactBuilder) Build() *entities.Artifact {
 func (b *ArtifactBuilder) PopulateTests(t *testing.T, cnt *testhelpers.TestContainer) *entities.Artifact {
 	ctx, cancel := context.WithTimeout(cnt.Ctx, 10*time.Second)
 	defer cancel()
-	artifactID, err := cnt.Repo.CreateArtifact(ctx, b.Build())
+	artifact := b.Build()
+	require.NoError(t, cnt.Repo.CreateArtifact(ctx, artifact.ID, artifact))
+	artifactDB, err := cnt.Repo.GetArtifactByID(ctx, artifact.OwnerID, artifact.ID)
 	require.NoError(t, err)
-	artifact, err := cnt.Repo.GetArtifactByID(ctx, artifactID)
-	require.NoError(t, err)
-	require.NotNil(t, artifact)
-	return artifact
+	require.NotNil(t, artifactDB)
+	return artifactDB
 }
