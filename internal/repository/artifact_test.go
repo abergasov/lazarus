@@ -26,7 +26,7 @@ func TestArtifactCrud(t *testing.T) {
 	require.Equal(t, artifact.OriginalName, artifactFromDB.OriginalName)
 	require.Equal(t, artifact.SHA256Hex, artifactFromDB.SHA256Hex)
 	require.Equal(t, artifact.DeclaredMIME, artifactFromDB.DeclaredMIME)
-	require.Equal(t, "", artifactFromDB.DetectedMIME)
+	require.Equal(t, artifact.DetectedMIME, artifactFromDB.DetectedMIME)
 	require.Equal(t, artifact.Status, artifactFromDB.Status)
 	require.Equal(t, artifact.Kind, artifactFromDB.Kind)
 
