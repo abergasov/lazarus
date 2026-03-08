@@ -31,11 +31,11 @@ services:
     networks:
       - app-network
     expose:
-      - "3000"
+      - "3001"
     environment:
       NODE_ENV: "production"
       HOST: "0.0.0.0"
-      PORT: "3000"
+      PORT: "3001"
 
   app:
     build:
@@ -45,7 +45,7 @@ services:
         CONF_PATH: configs/app_conf_docker.yml
     restart: always
     expose:
-      - "8000"
+      - "8001"
     depends_on:
       dbPostgres:
         condition: service_healthy
