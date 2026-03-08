@@ -46,3 +46,7 @@ func WithEmail(val string) Field {
 func WithUserName(val string) Field {
 	return WithString("user_name", val)
 }
+
+func WithPath(path string) Field {
+	return WithString("path", path)
+}
