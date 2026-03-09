@@ -5,6 +5,7 @@ import (
 	"lazarus/internal/config"
 	"lazarus/internal/logger"
 	"lazarus/internal/repository"
+	"os"
 )
 
 // Service get all uploaded artifacts from the database
@@ -15,14 +16,22 @@ type Service struct {
 	cfg  *config.AppConfig
 	log  logger.AppLogger
 	repo *repository.Repo
+
+	storagePath string
 }
 
 func NewService(ctx context.Context, log logger.AppLogger, cfg *config.AppConfig, repo *repository.Repo) *Service {
+	storagePath := os.TempDir()
+	if err := os.MkdirAll(storagePath, os.ModePerm); err != nil {
+		log.Fatal("cannot create storage dir", err, logger.WithPath(storagePath))
+	}
 	return &Service{
 		ctx:  ctx,
 		cfg:  cfg,
 		log:  log,
 		repo: repo,
+
+		storagePath: storagePath,
 	}
 }
 
