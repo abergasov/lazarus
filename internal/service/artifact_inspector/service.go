@@ -13,8 +13,13 @@ import (
 	"lazarus/internal/storage/antivirus"
 	"lazarus/internal/storage/bucket"
 	"lazarus/internal/utils"
+	"net/http"
 	"os"
 	"time"
+)
+
+const (
+	sniffLen = 512
 )
 
 // Service get all uploaded artifacts from the database
@@ -118,7 +123,18 @@ func (s *Service) InspectArtifact(artifact *entities.Artifact) error {
 	if err = s.scanTmpFile(ctx, tmp); err != nil {
 		return fmt.Errorf("cannot scan artifact: %w", err)
 	}
-	return nil
+	detectedMime, err := s.detectMimeType(tmp)
+	if err != nil {
+		return fmt.Errorf("cannot detect mime type: %w", err)
+	}
+	if detectedMime != artifact.DetectedMIME {
+		if err = s.purgeArtifact(ctx, artifact); err != nil {
+			return fmt.Errorf("cannot purge artifact with mime type mismatch: %w", err)
+		}
+		return fmt.Errorf("mime type mismatch: %s vs %s", detectedMime, artifact.DetectedMIME)
+	}
+	// todo parse to images, documents, etc and update artifact type in database
+	return s.markArtifactClean(ctx, artifact)
 }
 
 func (s *Service) scanTmpFile(ctx context.Context, tmp *os.File) error {
@@ -130,4 +146,22 @@ func (s *Service) scanTmpFile(ctx context.Context, tmp *os.File) error {
 		return fmt.Errorf("av scan: %w", err)
 	}
 	return nil
+}
+
+func (s *Service) detectMimeType(f *os.File) (string, error) {
+	if _, err := f.Seek(0, io.SeekStart); err != nil {
+		return "", fmt.Errorf("rewind file: %w", err)
+	}
+
+	buf := make([]byte, sniffLen)
+	n, err := f.Read(buf)
+	if err != nil && err != io.EOF {
+		return "", fmt.Errorf("read sniff bytes: %w", err)
+	}
+
+	if _, err = f.Seek(0, io.SeekStart); err != nil {
+		return "", fmt.Errorf("rewind file: %w", err)
+	}
+
+	return http.DetectContentType(buf[:n]), nil
 }
