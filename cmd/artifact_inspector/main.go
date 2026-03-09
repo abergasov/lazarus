@@ -7,11 +7,13 @@ import (
 	"lazarus/internal/logger"
 	"lazarus/internal/repository"
 	"lazarus/internal/service/artifact_inspector"
+	"lazarus/internal/storage/antivirus"
 	"lazarus/internal/storage/bucket"
 	"lazarus/internal/storage/database"
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 )
 
 var (
@@ -44,7 +46,8 @@ func main() {
 	}
 
 	appLog.Info("init services")
-	srvInspector := artifact_inspector.NewService(ctx, appLog, appConf, repository.InitRepo(dbConn), storageClient)
+	srvAntivirus := antivirus.NewClient(appConf.ClamavURL, 1*time.Minute)
+	srvInspector := artifact_inspector.NewService(ctx, appLog, appConf, repository.InitRepo(dbConn), storageClient, srvAntivirus)
 	go srvInspector.Run()
 
 	// register app shutdown
