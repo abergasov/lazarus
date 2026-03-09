@@ -1,0 +1,24 @@
+FROM golang:1.26 AS builder
+
+WORKDIR /src
+
+COPY go.mod go.sum ./
+RUN go mod download
+
+COPY . .
+
+ARG TARGETOS=linux
+ARG TARGETARCH=amd64
+
+RUN CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} go build -trimpath -ldflags="-s -w" -o /app ./cmd/artifact_inspector
+
+FROM alpine:3.21
+
+RUN adduser -D -H -h /app appuser && mkdir -p /app /app/secrets && chown -R appuser:appuser /app && apk add --no-cache ca-certificates
+WORKDIR /app
+
+COPY --from=builder /app /app/binary
+
+USER appuser
+
+ENTRYPOINT ["/app/binary"]
