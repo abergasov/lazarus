@@ -17,6 +17,10 @@ import (
 	"time"
 )
 
+const (
+	sniffLen = 512
+)
+
 // Service get all uploaded artifacts from the database
 // detect their mime type and content summary, and update the database with the results
 // all runs in isolated container in case of some malicious file that can harm the system
@@ -27,8 +31,6 @@ type Service struct {
 	repo         *repository.Repo
 	bucketClient *bucket.Client
 	avClient     *antivirus.Client
-
-	storagePath string
 }
 
 func NewService(
@@ -39,10 +41,6 @@ func NewService(
 	bucketClient *bucket.Client,
 	avClient *antivirus.Client,
 ) *Service {
-	storagePath := os.TempDir()
-	if err := os.MkdirAll(storagePath, os.ModePerm); err != nil {
-		log.Fatal("cannot create storage dir", err, logger.WithPath(storagePath))
-	}
 	return &Service{
 		ctx:          ctx,
 		cfg:          cfg,
@@ -50,8 +48,6 @@ func NewService(
 		repo:         repo,
 		bucketClient: bucketClient,
 		avClient:     avClient,
-
-		storagePath: storagePath,
 	}
 }
 
@@ -91,14 +87,14 @@ func (s *Service) InspectArtifact(artifact *entities.Artifact) error {
 	if err != nil {
 		return fmt.Errorf("cannot create temporary file: %w", err)
 	}
-	defer os.Remove(tmp.Name())
-	defer tmp.Close()
+	defer os.Remove(tmp.Name()) //nolint:errcheck
+	defer tmp.Close()           //nolint:errcheck
 
 	rCloser, err := s.bucketClient.Download(s.ctx, artifact.ObjectKey)
 	if err != nil {
 		return fmt.Errorf("cannot download artifact: %w", err)
 	}
-	defer rCloser.Close()
+	defer rCloser.Close() //nolint:errcheck
 
 	h := sha256.New()
 	if _, err = io.Copy(io.MultiWriter(tmp, h), rCloser); err != nil {
@@ -118,16 +114,37 @@ func (s *Service) InspectArtifact(artifact *entities.Artifact) error {
 	if err = s.scanTmpFile(ctx, tmp); err != nil {
 		return fmt.Errorf("cannot scan artifact: %w", err)
 	}
-	return nil
-}
-
-func (s *Service) scanTmpFile(ctx context.Context, tmp *os.File) error {
-	if _, err := tmp.Seek(0, io.SeekStart); err != nil {
-		return fmt.Errorf("rewind temp file: %w", err)
+	detectedMime, err := s.detectMimeType(tmp)
+	if err != nil {
+		return fmt.Errorf("cannot detect mime type: %w", err)
 	}
-
-	if err := s.avClient.ScanReader(ctx, tmp); err != nil {
-		return fmt.Errorf("av scan: %w", err)
+	if detectedMime != artifact.DetectedMIME {
+		if err = s.purgeArtifact(ctx, artifact); err != nil {
+			return fmt.Errorf("cannot purge artifact with mime type mismatch: %w", err)
+		}
+		return fmt.Errorf("mime type mismatch: %s vs %s", detectedMime, artifact.DetectedMIME)
 	}
-	return nil
+	if !sameMimeFamily(detectedMime, artifact.DetectedMIME, artifact.DeclaredMIME) {
+		if err = s.purgeArtifact(ctx, artifact); err != nil {
+			return fmt.Errorf("purge artifact after mime mismatch: %w", err)
+		}
+		return fmt.Errorf("mime type mismatch: detected=%s stored=%s declared=%s", detectedMime, artifact.DetectedMIME, artifact.DeclaredMIME)
+	}
+	switch classifyArtifact(detectedMime) {
+	case entities.ArtifactClassImage, entities.ArtifactClassText:
+		return s.markArtifactClean(ctx, artifact)
+	case entities.ArtifactClassPDF:
+		if err = s.markArtifactClean(ctx, artifact); err != nil {
+			return fmt.Errorf("mark pdf clean: %w", err)
+		}
+		if err = s.renderPDFPages(ctx, artifact, tmp.Name()); err != nil {
+			return fmt.Errorf("render pdf pages: %w", err)
+		}
+		return nil
+	default:
+		if err = s.purgeArtifact(ctx, artifact); err != nil {
+			return fmt.Errorf("purge unsupported artifact: %w", err)
+		}
+		return fmt.Errorf("unsupported artifact mime: %s", detectedMime)
+	}
 }

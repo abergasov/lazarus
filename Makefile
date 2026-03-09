@@ -23,7 +23,7 @@ gogen: ## generate code
 
 test: ## Runs tests
 	${info Running tests...}
-	go test -v -race ./... -cover -coverprofile cover.out
+	go test -p 1 -v -race ./... -cover -coverprofile cover.out
 	go tool cover -func cover.out | grep total
 
 bench: ## Runs benchmarks
@@ -52,7 +52,7 @@ prepare_ci: ## Prepares local environment for ci
 
 dev_up_ci: prepare_ci stop ## Runs local environment for ci
 	@echo "-- setting up docker-compose"
-	GIT_HASH=${FILE_HASH} docker compose -p ${PROJECT_NAME} up --build dbPostgres minio minio_init -d
+	GIT_HASH=${FILE_HASH} docker compose -p ${PROJECT_NAME} up --build dbPostgres minio minio_init clamav -d
 
 dev_up: stop ## Runs local environment
 	${info Running docker-compose up...}
