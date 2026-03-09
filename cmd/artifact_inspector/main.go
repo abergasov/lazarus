@@ -38,11 +38,8 @@ func main() {
 		}
 	}()
 
-	appLog.Info("init repositories")
-	repo := repository.InitRepo(dbConn)
-
 	appLog.Info("init services")
-	srvInspector := artifact_inspector.NewService(ctx, appLog, appConf, repo)
+	srvInspector := artifact_inspector.NewService(ctx, appLog, appConf, repository.InitRepo(dbConn))
 	go srvInspector.Run()
 
 	// register app shutdown
