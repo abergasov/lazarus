@@ -6,6 +6,7 @@ import (
 	"lazarus/internal/config"
 	"lazarus/internal/logger"
 	"lazarus/internal/repository"
+	"lazarus/internal/service/artifact_inspector"
 	"lazarus/internal/service/artifact_manager"
 	"lazarus/internal/service/authorization"
 	"lazarus/internal/service/user"
@@ -29,9 +30,10 @@ type TestContainer struct {
 
 	Repo *repository.Repo
 
-	ServiceAuth            *authorization.Service
-	ServiceUser            *user.Service
-	ServiceArtifactManager *artifact_manager.Service
+	ServiceAuth              *authorization.Service
+	ServiceUser              *user.Service
+	ServiceArtifactManager   *artifact_manager.Service
+	ServiceArtifactInspector *artifact_inspector.Service
 }
 
 func GetClean(t *testing.T) *TestContainer {
@@ -57,6 +59,7 @@ func GetClean(t *testing.T) *TestContainer {
 	srvAuth := authorization.NewService(ctx, appLog, conf, repo)
 	srvUser := user.NewService(ctx, appLog, conf, repo)
 	srvArtifactManager := artifact_manager.NewService(ctx, appLog, conf, repo, storageClient)
+	srvArtifactInspector := artifact_inspector.NewService(ctx, appLog, conf, repo, storageClient)
 	return &TestContainer{
 		Ctx:    ctx,
 		Cfg:    conf,
@@ -67,9 +70,10 @@ func GetClean(t *testing.T) *TestContainer {
 
 		Repo: repo,
 
-		ServiceAuth:            srvAuth,
-		ServiceUser:            srvUser,
-		ServiceArtifactManager: srvArtifactManager,
+		ServiceAuth:              srvAuth,
+		ServiceUser:              srvUser,
+		ServiceArtifactManager:   srvArtifactManager,
+		ServiceArtifactInspector: srvArtifactInspector,
 	}
 }
 
@@ -102,16 +106,16 @@ func getTestConfig(t *testing.T) *config.AppConfig {
 			DBName:         "lazarus_test",
 			MaxConnections: 10,
 		},
-		MaxUploadSizeBytes: 1024,
-		RawUploadsDir:      t.TempDir(),
+		RawUploadsDir: t.TempDir(),
 		S3: &bucket.S3Conf{
-			Region:          "us-east-1",
-			Endpoint:        "http://127.0.0.1:9000",
-			Bucket:          "lazarus",
-			AccessKeyID:     "minioadmin",
-			SecretAccessKey: "minioadmin",
-			Prefix:          "test/",
-			UsePathStyle:    true,
+			Region:             "us-east-1",
+			Endpoint:           "http://127.0.0.1:9000",
+			Bucket:             "lazarus",
+			AccessKeyID:        "minioadmin",
+			SecretAccessKey:    "minioadmin",
+			Prefix:             "test/",
+			UsePathStyle:       true,
+			MaxUploadSizeBytes: 1024,
 		},
 	}
 }

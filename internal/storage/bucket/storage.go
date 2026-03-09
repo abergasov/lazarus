@@ -79,9 +79,12 @@ func (c *Client) DownloadBytes(ctx context.Context, path string) ([]byte, error)
 	}
 	defer r.Close() //nolint:errcheck // it ok
 
-	b, err := io.ReadAll(r)
+	b, err := io.ReadAll(io.LimitReader(r, c.cfg.MaxUploadSizeBytes+1))
 	if err != nil {
 		return nil, fmt.Errorf("read object body: %w", err)
+	}
+	if int64(len(b)) > c.cfg.MaxUploadSizeBytes {
+		return nil, fmt.Errorf("object exceeds max allowed size: %d", c.cfg.MaxUploadSizeBytes)
 	}
 	return b, nil
 }

@@ -38,8 +38,8 @@ func NewService(
 	repo *repository.Repo,
 	bucketClient *bucket.Client,
 ) *Service {
-	if cfg.MaxUploadSizeBytes <= 0 {
-		log.Fatal("invalid MaxUploadSizeBytes configuration", fmt.Errorf("max upload size must be positive (got %d)", cfg.MaxUploadSizeBytes))
+	if cfg.S3.MaxUploadSizeBytes <= 0 {
+		log.Fatal("invalid MaxUploadSizeBytes configuration", fmt.Errorf("max upload size must be positive (got %d)", cfg.S3.MaxUploadSizeBytes))
 	}
 	if err := os.MkdirAll(cfg.RawUploadsDir, 0o700); err != nil {
 		log.Fatal("cannot create raw uploads dir", err, logger.WithPath(cfg.RawUploadsDir))
@@ -73,7 +73,7 @@ func (s *Service) Upload(ctx context.Context, userID uuid.UUID, file *multipart.
 		_ = os.Remove(tmpPath)
 	}()
 
-	limited := &io.LimitedReader{R: src, N: s.cfg.MaxUploadSizeBytes + 1}
+	limited := &io.LimitedReader{R: src, N: s.cfg.S3.MaxUploadSizeBytes + 1}
 	hasher := sha256.New()
 	n, err := io.Copy(io.MultiWriter(tmp, hasher), limited)
 	if err != nil {
@@ -82,7 +82,7 @@ func (s *Service) Upload(ctx context.Context, userID uuid.UUID, file *multipart.
 	if n == 0 {
 		return nil, errors.New("empty file")
 	}
-	if n > s.cfg.MaxUploadSizeBytes {
+	if n > s.cfg.S3.MaxUploadSizeBytes {
 		return nil, errors.New("file too large")
 	}
 	if _, err = tmp.Seek(0, io.SeekStart); err != nil {

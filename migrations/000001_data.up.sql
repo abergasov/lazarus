@@ -44,4 +44,5 @@ create table artifacts
     meta_json           jsonb
 );
 create index idx_artifacts_owner on artifacts (owner_id);
+create index idx_artifacts_status on artifacts (status);
 create index idx_artifacts_status_created_at on artifacts (status, created_at asc);
