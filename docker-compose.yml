@@ -56,6 +56,14 @@ services:
       timeout: 3s
       retries: 20
 
+  artifacts-inspector:
+    image: abergasov/inspector:latest
+    restart: unless-stopped
+    networks:
+      - app-network
+    volumes:
+      - ./configs/app_conf.yml:/app/configs/app_conf.yml:ro
+
   minio:
     image: minio/minio:latest
     command: server /data --console-address ":9001"
