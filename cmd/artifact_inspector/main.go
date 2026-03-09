@@ -7,6 +7,7 @@ import (
 	"lazarus/internal/logger"
 	"lazarus/internal/repository"
 	"lazarus/internal/service/artifact_inspector"
+	"lazarus/internal/storage/bucket"
 	"lazarus/internal/storage/database"
 	"os"
 	"os/signal"
@@ -37,9 +38,13 @@ func main() {
 			appLog.Fatal("unable to close db connection", err)
 		}
 	}()
+	storageClient, err := bucket.NewClient(ctx, appConf.S3)
+	if err != nil {
+		appLog.Fatal("unable to create storage client", err)
+	}
 
 	appLog.Info("init services")
-	srvInspector := artifact_inspector.NewService(ctx, appLog, appConf, repository.InitRepo(dbConn))
+	srvInspector := artifact_inspector.NewService(ctx, appLog, appConf, repository.InitRepo(dbConn), storageClient)
 	go srvInspector.Run()
 
 	// register app shutdown

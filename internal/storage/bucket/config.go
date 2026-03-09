@@ -3,13 +3,14 @@ package bucket
 import "fmt"
 
 type S3Conf struct {
-	Region          string `yaml:"region"`   // aws: "eu-central-1", hetzner: "hel1" (or any; used for signing)
-	Endpoint        string `yaml:"endpoint"` // hetzner: "https://<name>.hel1.your-objectstorage.com", aws: "" (empty)
-	Bucket          string `yaml:"bucket"`
-	AccessKeyID     string `yaml:"access_key_id"`
-	SecretAccessKey string `yaml:"secret_access_key"`
-	Prefix          string `yaml:"prefix"`         // optional: "dev/"
-	UsePathStyle    bool   `yaml:"use_path_style"` // hetzner usually false; minio often true
+	Region             string `yaml:"region"`   // aws: "eu-central-1", hetzner: "hel1" (or any; used for signing)
+	Endpoint           string `yaml:"endpoint"` // hetzner: "https://<name>.hel1.your-objectstorage.com", aws: "" (empty)
+	Bucket             string `yaml:"bucket"`
+	AccessKeyID        string `yaml:"access_key_id"`
+	SecretAccessKey    string `yaml:"secret_access_key"`
+	Prefix             string `yaml:"prefix"`                // optional: "dev/"
+	UsePathStyle       bool   `yaml:"use_path_style"`        // hetzner usually false; minio often true
+	MaxUploadSizeBytes int64  `yaml:"max_upload_size_bytes"` // in bytes how max file size can be uploaded, e.g. 10*1024*1024 for 10MB
 }
 
 func (c *S3Conf) Validate() error {
