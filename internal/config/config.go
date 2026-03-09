@@ -19,6 +19,7 @@ type AppConfig struct {
 	GoogleAppSecret string         `yaml:"google_app_secret"`
 	GoogleAppID     string         `yaml:"google_app_id"`
 	AppPort         int            `yaml:"app_port"`
+	ClamavURL       string         `yaml:"clamav_url"`
 	RawUploadsDir   string         `yaml:"raw_uploads_dir"` // dir for storing raw uploaded files, which will be deleted after processing
 	EnableTelemetry bool           `yaml:"enable_telemetry"`
 	MigratesFolder  string         `yaml:"migrates_folder"`

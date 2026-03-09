@@ -48,6 +48,11 @@ func (b *ArtifactBuilder) WithStatus(status entities.ArtifactStatus) *ArtifactBu
 	return b
 }
 
+func (b *ArtifactBuilder) WithHash(hash string) *ArtifactBuilder {
+	b.artifact.SHA256Hex = hash
+	return b
+}
+
 func (b *ArtifactBuilder) Build() *entities.Artifact {
 	return b.artifact
 }

@@ -13,6 +13,7 @@ import (
 
 type Client struct {
 	s3     *s3.Client
+	cfg    *S3Conf
 	bucket string
 	prefix string
 }
@@ -41,6 +42,7 @@ func NewClient(ctx context.Context, cfg *S3Conf) (*Client, error) {
 
 	return &Client{
 		s3:     client,
+		cfg:    cfg,
 		bucket: cfg.Bucket,
 		prefix: cfg.Prefix,
 	}, nil

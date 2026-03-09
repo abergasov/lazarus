@@ -3,6 +3,7 @@ version: '3'
 volumes:
   data_pq_volume:
   minio_data:
+  clamav_db:
 
 #Docker Networks
 networks:
@@ -55,6 +56,14 @@ services:
       interval: 5s
       timeout: 3s
       retries: 20
+
+  clamav:
+    image: clamav/clamav:stable
+    restart: unless-stopped
+    ports:
+      - "3310:3310"
+    volumes:
+      - clamav_db:/var/lib/clamav
 
   artifacts-inspector:
     image: abergasov/inspector:latest

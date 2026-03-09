@@ -10,6 +10,7 @@ import (
 	"lazarus/internal/service/artifact_manager"
 	"lazarus/internal/service/authorization"
 	"lazarus/internal/service/user"
+	"lazarus/internal/storage/antivirus"
 	"lazarus/internal/storage/bucket"
 	"lazarus/internal/storage/database"
 	"os"
@@ -34,6 +35,7 @@ type TestContainer struct {
 	ServiceUser              *user.Service
 	ServiceArtifactManager   *artifact_manager.Service
 	ServiceArtifactInspector *artifact_inspector.Service
+	ServiceAntivirus         *antivirus.Client
 }
 
 func GetClean(t *testing.T) *TestContainer {
@@ -56,10 +58,11 @@ func GetClean(t *testing.T) *TestContainer {
 	repo := repository.InitRepo(dbConnect)
 
 	// service init
+	srvAntivirus := antivirus.NewClient(conf.ClamavURL, 1*time.Minute)
 	srvAuth := authorization.NewService(ctx, appLog, conf, repo)
 	srvUser := user.NewService(ctx, appLog, conf, repo)
 	srvArtifactManager := artifact_manager.NewService(ctx, appLog, conf, repo, storageClient)
-	srvArtifactInspector := artifact_inspector.NewService(ctx, appLog, conf, repo, storageClient)
+	srvArtifactInspector := artifact_inspector.NewService(ctx, appLog, conf, repo, storageClient, srvAntivirus)
 	return &TestContainer{
 		Ctx:    ctx,
 		Cfg:    conf,
@@ -74,6 +77,7 @@ func GetClean(t *testing.T) *TestContainer {
 		ServiceUser:              srvUser,
 		ServiceArtifactManager:   srvArtifactManager,
 		ServiceArtifactInspector: srvArtifactInspector,
+		ServiceAntivirus:         srvAntivirus,
 	}
 }
 
@@ -106,6 +110,7 @@ func getTestConfig(t *testing.T) *config.AppConfig {
 			DBName:         "lazarus_test",
 			MaxConnections: 10,
 		},
+		ClamavURL:     "127.0.0.1:3310",
 		RawUploadsDir: t.TempDir(),
 		S3: &bucket.S3Conf{
 			Region:             "us-east-1",
