@@ -6,6 +6,7 @@ import (
 	"crypto/sha256"
 	"database/sql"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"io"
 	"lazarus/internal/entities"
@@ -35,7 +36,7 @@ func (s *Service) detectMimeType(f *os.File) (string, error) {
 
 	buf := make([]byte, sniffLen)
 	n, err := f.Read(buf)
-	if err != nil && err != io.EOF {
+	if err != nil && !errors.Is(err, io.EOF) {
 		return "", fmt.Errorf("read sniff bytes: %w", err)
 	}
 

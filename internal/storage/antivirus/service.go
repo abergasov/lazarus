@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"context"
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"io"
 	"math"
@@ -54,7 +55,7 @@ func (c *Client) ScanReader(ctx context.Context, r io.Reader) error {
 				return fmt.Errorf("chunk too large: %d", n)
 			}
 			chunk := buf[:n]
-			binary.BigEndian.PutUint32(lenBuf[:], uint32(n))
+			binary.BigEndian.PutUint32(lenBuf[:], uint32(n)) //nolint:gosec // overflow is checked above
 			if _, err = conn.Write(lenBuf); err != nil {
 				return fmt.Errorf("write chunk size: %w", err)
 			}
@@ -77,7 +78,7 @@ func (c *Client) ScanReader(ctx context.Context, r io.Reader) error {
 	}
 
 	resp, err := bufio.NewReader(conn).ReadString('\n')
-	if err != nil && err != io.EOF {
+	if err != nil && !errors.Is(err, io.EOF) {
 		return fmt.Errorf("read clamd response: %w", err)
 	}
 
