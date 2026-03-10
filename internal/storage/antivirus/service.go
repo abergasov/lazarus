@@ -41,7 +41,7 @@ func (c *Client) ScanReader(ctx context.Context, r io.Reader) error {
 	}
 
 	// INSTREAM protocol
-	if _, err = conn.Write([]byte("zINSTREAM\x00")); err != nil {
+	if err = writeAll(conn, []byte("zINSTREAM\x00")); err != nil {
 		return fmt.Errorf("write clamd command: %w", err)
 	}
 
@@ -56,10 +56,10 @@ func (c *Client) ScanReader(ctx context.Context, r io.Reader) error {
 			}
 			chunk := buf[:n]
 			binary.BigEndian.PutUint32(lenBuf, uint32(n)) //nolint:gosec // overflow is checked above
-			if _, err = conn.Write(lenBuf); err != nil {
+			if err = writeAll(conn, lenBuf); err != nil {
 				return fmt.Errorf("write chunk size: %w", err)
 			}
-			if _, err = conn.Write(chunk); err != nil {
+			if err = writeAll(conn, chunk); err != nil {
 				return fmt.Errorf("write chunk body: %w", err)
 			}
 		}
@@ -73,7 +73,7 @@ func (c *Client) ScanReader(ctx context.Context, r io.Reader) error {
 	}
 
 	// zero-length chunk terminates stream
-	if _, err = conn.Write([]byte{0, 0, 0, 0}); err != nil {
+	if err = writeAll(conn, []byte{0, 0, 0, 0}); err != nil {
 		return fmt.Errorf("finish clamd stream: %w", err)
 	}
 
@@ -93,4 +93,16 @@ func (c *Client) ScanReader(ctx context.Context, r io.Reader) error {
 	default:
 		return fmt.Errorf("unexpected clamd response: %s", resp)
 	}
+}
+
+// writeAll writes all bytes of p to w, retrying on partial writes.
+func writeAll(w io.Writer, p []byte) error {
+	for len(p) > 0 {
+		n, err := w.Write(p)
+		if err != nil {
+			return err
+		}
+		p = p[n:]
+	}
+	return nil
 }

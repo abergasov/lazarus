@@ -86,7 +86,7 @@ func (c *Client) DownloadBytes(ctx context.Context, path string) ([]byte, error)
 		return nil, fmt.Errorf("read object body: %w", err)
 	}
 	if int64(len(b)) > c.cfg.MaxUploadSizeBytes {
-		return nil, fmt.Errorf("object exceeds max allowed size: %d", c.cfg.MaxUploadSizeBytes)
+		return nil, fmt.Errorf("object size %d bytes exceeds max allowed size %d bytes", len(b), c.cfg.MaxUploadSizeBytes)
 	}
 	return b, nil
 }
