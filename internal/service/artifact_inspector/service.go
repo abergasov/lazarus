@@ -129,7 +129,6 @@ func (s *Service) InspectArtifact(artifact *entities.Artifact) error {
 			return fmt.Errorf("purge artifact after mime mismatch: %w", err)
 		}
 		return fmt.Errorf("mime type mismatch: detected=%s stored=%s declared=%s", detectedMime, artifact.DetectedMIME, artifact.DeclaredMIME)
-
 	}
 	switch classifyArtifact(detectedMime) {
 	case entities.ArtifactClassImage, entities.ArtifactClassText:
