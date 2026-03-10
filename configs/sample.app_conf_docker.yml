@@ -3,6 +3,7 @@ frontend_url: http://localhost:3000
 migrates_folder: migrations
 enable_telemetry: true
 clamav_url: clamav:3310
+raw_uploads_dir: /tmp/lazarus/uploads
 conf_db:
   address: dbPostgres
   port: 5559
@@ -29,3 +30,27 @@ s3:
   prefix: dev/
   use_path_style: false
   max_upload_size_bytes: 1024
+llm:
+  providers:
+    - type: anthropic
+      api_key: ${ANTHROPIC_API_KEY}
+      default_model: claude-sonnet-4-6
+    - type: openai
+      api_key: ${OPENAI_API_KEY}
+      default_model: gpt-4o
+  roles:
+    prep_visit:
+      provider: anthropic
+      model: claude-sonnet-4-6
+    during_visit:
+      provider: anthropic
+      model: claude-haiku-4-5-20251001
+    after_visit:
+      provider: anthropic
+      model: claude-sonnet-4-6
+    vision:
+      provider: anthropic
+      model: claude-sonnet-4-6
+    embed:
+      provider: openai
+      model: text-embedding-3-small

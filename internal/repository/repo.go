@@ -1,6 +1,9 @@
 package repository
 
-import "lazarus/internal/storage/database"
+import (
+	"lazarus/internal/storage/database"
+	"strings"
+)
 
 type Repo struct {
 	db database.DBConnector
@@ -8,6 +11,8 @@ type Repo struct {
 
 var AllTables = []string{
 	TableOneTimeKey,
+	TableLabResult,
+	TableMedications,
 	TableArtifactDerivatives,
 	TableArtifacts,
 	TableUser,
@@ -15,4 +20,9 @@ var AllTables = []string{
 
 func InitRepo(db database.DBConnector) *Repo {
 	return &Repo{db: db}
+}
+
+func strip(s string) string {
+	s = strings.ToLower(s)
+	return strings.TrimSpace(strings.ReplaceAll(s, "\n", " "))
 }

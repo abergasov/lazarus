@@ -37,20 +37,20 @@ func NewService(
 	cfg *config.AppConfig,
 	repo *repository.Repo,
 	bucketClient *bucket.Client,
-) *Service {
+) (*Service, error) {
 	if cfg.S3.MaxUploadSizeBytes <= 0 {
 		log.Fatal("invalid MaxUploadSizeBytes configuration", fmt.Errorf("max upload size must be positive (got %d)", cfg.S3.MaxUploadSizeBytes))
 	}
 	if err := os.MkdirAll(cfg.RawUploadsDir, 0o700); err != nil {
-		log.Fatal("cannot create raw uploads dir", err, logger.WithPath(cfg.RawUploadsDir))
+		return nil, fmt.Errorf("failed to create raw uploads dir at %s: %w", cfg.RawUploadsDir, err)
 	}
 	return &Service{
 		ctx:          ctx,
 		cfg:          cfg,
-		log:          log,
+		log:          log.With(logger.WithService("artifact_manager")),
 		repo:         repo,
 		bucketClient: bucketClient,
-	}
+	}, nil
 }
 
 func (s *Service) Upload(ctx context.Context, userID uuid.UUID, file *multipart.FileHeader) (*entities.Artifact, error) {

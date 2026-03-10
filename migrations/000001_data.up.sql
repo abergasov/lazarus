@@ -27,7 +27,7 @@ create table users
 create table artifacts
 (
     a_id                uuid primary key,
-    owner_id            uuid not null,
+    owner_id            uuid not null references users(u_id) on delete cascade,
     kind                varchar(20) not null,
     status              varchar(15) not null,
     declared_mime_type  varchar(50) not null,
@@ -63,3 +63,42 @@ create table artifact_derivatives (
 );
 
 create unique index ux_artifact_derivatives_artifact_kind_page on artifact_derivatives (artifact_id, kind, page_num);
+
+
+CREATE TABLE lab_results (
+    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id         UUID NOT NULL references users(u_id) on delete cascade,
+    document_id     UUID REFERENCES artifacts(a_id),
+    loinc_code      VARCHAR(20),
+    lab_value       jsonb,
+    unit            VARCHAR(50),
+    reference_low   NUMERIC(12,4),
+    reference_high  NUMERIC(12,4),
+    flag            VARCHAR(20) NOT NULL DEFAULT 'normal',
+    lab_name        VARCHAR(255),
+    collected_at    TIMESTAMPTZ NOT NULL,
+    normalized_name VARCHAR(255),
+    created_at      TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX idx_lab_results_user_loinc_date ON lab_results(user_id, loinc_code, collected_at DESC);
+CREATE INDEX idx_lab_results_abnormal ON lab_results(user_id, flag) WHERE flag != 'normal';
+CREATE UNIQUE INDEX IF NOT EXISTS idx_lab_results_dedup_v2 ON lab_results (user_id, LOWER(COALESCE(normalized_name, COALESCE(lab_name, ''))), collected_at, lab_value);
+
+CREATE TABLE medications (
+    id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id     UUID NOT NULL,
+    rxcui       VARCHAR(20),
+    name        VARCHAR(500) NOT NULL,
+    dose        VARCHAR(100) DEFAULT '',
+    frequency   VARCHAR(100),
+    route       VARCHAR(50),
+    prescriber  VARCHAR(255),
+    is_active   BOOLEAN NOT NULL DEFAULT TRUE,
+    started_at  DATE,
+    ended_at    DATE,
+    created_at  TIMESTAMPTZ DEFAULT NOW(),
+    updated_at  TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX idx_medications_user_active ON medications(user_id) WHERE is_active = TRUE;
+CREATE UNIQUE INDEX IF NOT EXISTS idx_medications_user_name_dose ON medications (user_id, name, dose);

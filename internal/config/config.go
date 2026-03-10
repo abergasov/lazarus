@@ -2,6 +2,7 @@ package config
 
 import (
 	"fmt"
+	"lazarus/internal/entities"
 	"lazarus/internal/storage/bucket"
 	"log"
 	"os"
@@ -25,6 +26,12 @@ type AppConfig struct {
 	MigratesFolder  string         `yaml:"migrates_folder"`
 	ConfigDB        DBConf         `yaml:"conf_db"`
 	S3              *bucket.S3Conf `yaml:"s3"`
+	LLM             LLMConfig      `yaml:"llm"`
+}
+
+type LLMConfig struct {
+	Providers []*entities.AIProvider `yaml:"providers"`
+	Roles     entities.RoleConfig    `yaml:"roles"`
 }
 
 type DBConf struct {

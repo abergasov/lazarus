@@ -4,16 +4,20 @@ import (
 	"context"
 	"fmt"
 	"lazarus/internal/config"
+	"lazarus/internal/entities"
 	"lazarus/internal/logger"
 	"lazarus/internal/repository"
 	"lazarus/internal/service/artifact_inspector"
 	"lazarus/internal/service/artifact_manager"
+	"lazarus/internal/service/artifact_parser"
 	"lazarus/internal/service/authorization"
+	"lazarus/internal/service/provider"
 	"lazarus/internal/service/user"
 	"lazarus/internal/storage/antivirus"
 	"lazarus/internal/storage/bucket"
 	"lazarus/internal/storage/database"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -35,7 +39,9 @@ type TestContainer struct {
 	ServiceUser              *user.Service
 	ServiceArtifactManager   *artifact_manager.Service
 	ServiceArtifactInspector *artifact_inspector.Service
+	ServiceArtifactParser    *artifact_parser.Service
 	ServiceAntivirus         *antivirus.Client
+	ServiceRegistry          *provider.Registry
 }
 
 func GetClean(t *testing.T) *TestContainer {
@@ -64,13 +70,16 @@ func GetCleanWithConfig(t *testing.T, conf *config.AppConfig) *TestContainer {
 	srvAntivirus := antivirus.NewClient(conf.ClamavURL, 1*time.Minute)
 	srvAuth := authorization.NewService(ctx, appLog, conf, repo)
 	srvUser := user.NewService(ctx, appLog, conf, repo)
-	srvArtifactManager := artifact_manager.NewService(ctx, appLog, conf, repo, storageClient)
+	srvArtifactManager, err := artifact_manager.NewService(ctx, appLog, conf, repo, storageClient)
+	require.NoError(t, err)
 	srvArtifactInspector := artifact_inspector.NewService(ctx, appLog, conf, repo, storageClient, srvAntivirus)
+	srvProviderRegistry, err := provider.NewRegistry(ctx, appLog, conf, repo)
+	require.NoError(t, err)
+	srvArtifactParser := artifact_parser.NewService(ctx, appLog, conf, repo, storageClient, srvProviderRegistry)
 	return &TestContainer{
-		Ctx:    ctx,
-		Cfg:    conf,
-		Logger: appLog,
-
+		Ctx:          ctx,
+		Cfg:          conf,
+		Logger:       appLog,
 		Conn:         dbConnect,
 		BucketClient: storageClient,
 
@@ -81,6 +90,8 @@ func GetCleanWithConfig(t *testing.T, conf *config.AppConfig) *TestContainer {
 		ServiceArtifactManager:   srvArtifactManager,
 		ServiceArtifactInspector: srvArtifactInspector,
 		ServiceAntivirus:         srvAntivirus,
+		ServiceArtifactParser:    srvArtifactParser,
+		ServiceRegistry:          srvProviderRegistry,
 	}
 }
 
@@ -100,6 +111,15 @@ func prepareTestDB(ctx context.Context, t *testing.T, cnf *config.DBConf) {
 	if _, err = dbConnect.Client().Exec(fmt.Sprintf("CREATE DATABASE %s", cnf.DBName)); !isDatabaseExists(err) {
 		require.NoError(t, err)
 	}
+}
+
+func GetActualConfig(t *testing.T) *config.AppConfig {
+	path, err := os.Getwd()
+	require.NoError(t, err)
+	confPath := filepath.Join(strings.Split(path, "internal")[0], "configs/app_conf.yml") //nolint:gocritic // it ok
+	cfg, err := config.InitConf(confPath)
+	require.NoError(t, err)
+	return cfg
 }
 
 func GetTestConfig(t *testing.T) *config.AppConfig {
@@ -124,6 +144,42 @@ func GetTestConfig(t *testing.T) *config.AppConfig {
 			Prefix:             "test/",
 			UsePathStyle:       true,
 			MaxUploadSizeBytes: 1024,
+		},
+		LLM: config.LLMConfig{
+			Providers: []*entities.AIProvider{
+				{
+					Type:         entities.AgentProviderAnthropic,
+					APIKey:       os.Getenv("LAZARUS_ANTHROPIC_API_KEY"),
+					DefaultModel: "claude-sonnet-4-6",
+				},
+				{
+					Type:         entities.AgentProviderOpenAI,
+					APIKey:       os.Getenv("LAZARUS_OPENAI_API_KEY"),
+					DefaultModel: "gpt-4.1",
+				},
+			},
+			Roles: entities.RoleConfig{
+				PrepVisit: &entities.AgentRoleConfig{
+					ProviderID: entities.AgentProviderOpenAI,
+					Model:      "gpt-4.1-mini",
+				},
+				DuringVisit: &entities.AgentRoleConfig{
+					ProviderID: entities.AgentProviderOpenAI,
+					Model:      "gpt-4.1-mini",
+				},
+				AfterVisit: &entities.AgentRoleConfig{
+					ProviderID: entities.AgentProviderOpenAI,
+					Model:      "gpt-4.1-mini",
+				},
+				Vision: &entities.AgentRoleConfig{
+					ProviderID: entities.AgentProviderOpenAI,
+					Model:      "gpt-4.1-mini",
+				},
+				Embed: &entities.AgentRoleConfig{
+					ProviderID: entities.AgentProviderOpenAI,
+					Model:      "text-embedding-3-small",
+				},
+			},
 		},
 	}
 }
