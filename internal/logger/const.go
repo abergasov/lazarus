@@ -43,8 +43,8 @@ func WithPath(path string) Field {
 	return WithString("path", path)
 }
 
-func WithArtifactID(path uuid.UUID) Field {
-	return WithString("artifact_id", path.String())
+func WithArtifactID(artifactID uuid.UUID) Field {
+	return WithString("artifact_id", artifactID.String())
 }
 
 func WithService(serviceName string) Field {
