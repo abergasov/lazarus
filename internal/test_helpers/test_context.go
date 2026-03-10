@@ -39,8 +39,11 @@ type TestContainer struct {
 }
 
 func GetClean(t *testing.T) *TestContainer {
+	return GetCleanWithConfig(t, GetTestConfig(t))
+}
+
+func GetCleanWithConfig(t *testing.T, conf *config.AppConfig) *TestContainer {
 	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Minute)
-	conf := getTestConfig(t)
 	prepareTestDB(ctx, t, &conf.ConfigDB)
 
 	dbConnect, err := database.InitDBConnect(ctx, &conf.ConfigDB, guessMigrationDir(t))
@@ -99,7 +102,7 @@ func prepareTestDB(ctx context.Context, t *testing.T, cnf *config.DBConf) {
 	}
 }
 
-func getTestConfig(t *testing.T) *config.AppConfig {
+func GetTestConfig(t *testing.T) *config.AppConfig {
 	return &config.AppConfig{
 		AppPort: 0,
 		ConfigDB: config.DBConf{
