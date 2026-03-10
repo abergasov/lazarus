@@ -46,3 +46,20 @@ create table artifacts
 create index idx_artifacts_owner on artifacts (owner_id);
 create index idx_artifacts_status on artifacts (status);
 create index idx_artifacts_status_created_at on artifacts (status, created_at asc);
+
+create table artifact_derivatives (
+    d_id uuid primary key,
+    artifact_id uuid not null references artifacts(a_id) on delete cascade,
+    kind text not null,
+    page_num int,
+    storage text not null,
+    bucket text not null,
+    object_key text not null,
+    detected_mime_type text not null,
+    byte_size bigint not null,
+    sha256_hex char(64) not null,
+    created_at timestamptz not null default now(),
+    check (kind in ('pdf_page_image', 'preview', 'thumbnail', 'ocr_text'))
+);
+
+create unique index ux_artifact_derivatives_artifact_kind_page on artifact_derivatives (artifact_id, kind, page_num);

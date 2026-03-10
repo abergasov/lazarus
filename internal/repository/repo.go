@@ -8,6 +8,7 @@ type Repo struct {
 
 var AllTables = []string{
 	TableOneTimeKey,
+	TableArtifactDerivatives,
 	TableArtifacts,
 	TableUser,
 }

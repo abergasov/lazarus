@@ -13,7 +13,6 @@ import (
 	"lazarus/internal/storage/antivirus"
 	"lazarus/internal/storage/bucket"
 	"lazarus/internal/utils"
-	"net/http"
 	"os"
 	"time"
 )
@@ -125,35 +124,28 @@ func (s *Service) InspectArtifact(artifact *entities.Artifact) error {
 		}
 		return fmt.Errorf("mime type mismatch: %s vs %s", detectedMime, artifact.DetectedMIME)
 	}
-	// todo parse to images, documents, etc and update artifact type in database
-	return s.markArtifactClean(ctx, artifact)
-}
+	if !sameMimeFamily(detectedMime, artifact.DetectedMIME, artifact.DeclaredMIME) {
+		if err = s.purgeArtifact(ctx, artifact); err != nil {
+			return fmt.Errorf("purge artifact after mime mismatch: %w", err)
+		}
+		return fmt.Errorf("mime type mismatch: detected=%s stored=%s declared=%s", detectedMime, artifact.DetectedMIME, artifact.DeclaredMIME)
 
-func (s *Service) scanTmpFile(ctx context.Context, tmp *os.File) error {
-	if _, err := tmp.Seek(0, io.SeekStart); err != nil {
-		return fmt.Errorf("rewind temp file: %w", err)
 	}
-
-	if err := s.avClient.ScanReader(ctx, tmp); err != nil {
-		return fmt.Errorf("av scan: %w", err)
+	switch classifyArtifact(detectedMime) {
+	case entities.ArtifactClassImage, entities.ArtifactClassText:
+		return s.markArtifactClean(ctx, artifact)
+	case entities.ArtifactClassPDF:
+		if err = s.markArtifactClean(ctx, artifact); err != nil {
+			return fmt.Errorf("mark pdf clean: %w", err)
+		}
+		if err = s.renderPDFPages(ctx, artifact, tmp.Name()); err != nil {
+			return fmt.Errorf("render pdf pages: %w", err)
+		}
+		return nil
+	default:
+		if err = s.purgeArtifact(ctx, artifact); err != nil {
+			return fmt.Errorf("purge unsupported artifact: %w", err)
+		}
+		return fmt.Errorf("unsupported artifact mime: %s", detectedMime)
 	}
-	return nil
-}
-
-func (s *Service) detectMimeType(f *os.File) (string, error) {
-	if _, err := f.Seek(0, io.SeekStart); err != nil {
-		return "", fmt.Errorf("rewind file: %w", err)
-	}
-
-	buf := make([]byte, sniffLen)
-	n, err := f.Read(buf)
-	if err != nil && err != io.EOF {
-		return "", fmt.Errorf("read sniff bytes: %w", err)
-	}
-
-	if _, err = f.Seek(0, io.SeekStart); err != nil {
-		return "", fmt.Errorf("rewind file: %w", err)
-	}
-
-	return http.DetectContentType(buf[:n]), nil
 }
