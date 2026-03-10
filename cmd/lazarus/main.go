@@ -8,8 +8,11 @@ import (
 	"lazarus/internal/logger"
 	"lazarus/internal/repository"
 	"lazarus/internal/routes"
+	"lazarus/internal/service/artifact_manager"
+	"lazarus/internal/service/artifact_parser"
 	"lazarus/internal/service/authorization"
 	"lazarus/internal/service/user"
+	"lazarus/internal/storage/bucket"
 	"lazarus/internal/storage/database"
 	"os"
 	"os/signal"
@@ -43,14 +46,20 @@ func main() {
 	}()
 
 	appLog.Info("init repositories")
+	storageClient, err := bucket.NewClient(ctx, appConf.S3)
+	if err != nil {
+		appLog.Fatal("unable to create storage client", err)
+	}
 	repo := repository.InitRepo(dbConn)
 
 	appLog.Info("init services")
 	srvAuth := authorization.NewService(ctx, appLog, appConf, repo)
 	srvUser := user.NewService(ctx, appLog, appConf, repo)
+	srvArtifactManager := artifact_manager.NewService(ctx, appLog, appConf, repo, storageClient)
+	srvArtifactParser := artifact_parser.NewService(ctx, appLog, appConf, repo, storageClient)
 
 	appLog.Info("init http service")
-	appHTTPServer := routes.InitAppRouter(appLog, appConf, srvAuth, srvUser, fmt.Sprintf(":%d", appConf.AppPort), true)
+	appHTTPServer := routes.InitAppRouter(appLog, appConf, srvAuth, srvArtifactManager, srvUser, fmt.Sprintf(":%d", appConf.AppPort), true)
 	defer func() {
 		if err = appHTTPServer.Stop(); err != nil {
 			appLog.Fatal("unable to stop http service", err)
@@ -61,10 +70,12 @@ func main() {
 			appLog.Fatal("unable to start http service", err)
 		}
 	}()
+	go srvArtifactParser.Run()
 
 	// register app shutdown
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
 	<-c // This blocks the main thread until an interrupt is received
+	srvArtifactParser.Stop()
 	cancel()
 }

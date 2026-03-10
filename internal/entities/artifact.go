@@ -30,6 +30,7 @@ const (
 	ArtifactStatusQuarantined ArtifactStatus = "QUARANTINED"
 	ArtifactStatusClean       ArtifactStatus = "CLEAN"
 	ArtifactStatusRejected    ArtifactStatus = "REJECTED"
+	ArtifactStatusParsed      ArtifactStatus = "PARSED"
 
 	ArtifactClassUnknown ArtifactClass = "unknown"
 	ArtifactClassImage   ArtifactClass = "image"
