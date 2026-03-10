@@ -29,7 +29,7 @@ func (c *Client) ScanReader(ctx context.Context, r io.Reader) error {
 	if err != nil {
 		return fmt.Errorf("dial clamd: %w", err)
 	}
-	defer conn.Close()
+	defer conn.Close() //nolint:errcheck
 
 	if deadline, ok := ctx.Deadline(); ok {
 		_ = conn.SetDeadline(deadline)

@@ -32,8 +32,6 @@ type Service struct {
 	repo         *repository.Repo
 	bucketClient *bucket.Client
 	avClient     *antivirus.Client
-
-	storagePath string
 }
 
 func NewService(
@@ -44,10 +42,6 @@ func NewService(
 	bucketClient *bucket.Client,
 	avClient *antivirus.Client,
 ) *Service {
-	storagePath := os.TempDir()
-	if err := os.MkdirAll(storagePath, os.ModePerm); err != nil {
-		log.Fatal("cannot create storage dir", err, logger.WithPath(storagePath))
-	}
 	return &Service{
 		ctx:          ctx,
 		cfg:          cfg,
@@ -55,8 +49,6 @@ func NewService(
 		repo:         repo,
 		bucketClient: bucketClient,
 		avClient:     avClient,
-
-		storagePath: storagePath,
 	}
 }
 
@@ -96,14 +88,14 @@ func (s *Service) InspectArtifact(artifact *entities.Artifact) error {
 	if err != nil {
 		return fmt.Errorf("cannot create temporary file: %w", err)
 	}
-	defer os.Remove(tmp.Name())
-	defer tmp.Close()
+	defer os.Remove(tmp.Name()) //nolint:errcheck
+	defer tmp.Close()           //nolint:errcheck
 
 	rCloser, err := s.bucketClient.Download(s.ctx, artifact.ObjectKey)
 	if err != nil {
 		return fmt.Errorf("cannot download artifact: %w", err)
 	}
-	defer rCloser.Close()
+	defer rCloser.Close() //nolint:errcheck
 
 	h := sha256.New()
 	if _, err = io.Copy(io.MultiWriter(tmp, h), rCloser); err != nil {
