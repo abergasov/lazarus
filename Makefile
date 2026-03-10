@@ -1,6 +1,7 @@
 PROJECT_NAME:=lazarus
 FILE_HASH := $(shell git rev-parse HEAD)
 GOLANGCI_LINT := $(shell command -v golangci-lint 2> /dev/null)
+DOCKER_HUB_USER:=abergasov
 
 # test coverage threshold
 COVERAGE_THRESHOLD:=30
@@ -16,19 +17,13 @@ ifndef GOLANGCI_LINT
 	go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
 endif
 
-abi: ## generate abi struct
-	abigen --abi internal/service/web3/approver/erc20.abi.json --pkg approver --type Erc20 --out erc_20.go
-	mv erc_20.go internal/service/web3/approver/
-	abigen --abi internal/service/web3/swapper/stargate.abi.json --pkg swapper --type StargateRouter --out stargate_abi.go
-	mv stargate_abi.go internal/service/web3/swapper/
-
 gogen: ## generate code
 	${info generate code...}
 	go generate ./internal...
 
 test: ## Runs tests
 	${info Running tests...}
-	go test -v -race ./... -cover -coverprofile cover.out
+	go test -p 1 -v -race ./... -cover -coverprofile cover.out
 	go tool cover -func cover.out | grep total
 
 bench: ## Runs benchmarks
@@ -57,11 +52,11 @@ prepare_ci: ## Prepares local environment for ci
 
 dev_up_ci: prepare_ci stop ## Runs local environment for ci
 	@echo "-- setting up docker-compose"
-	GIT_HASH=${FILE_HASH} docker compose -p ${PROJECT_NAME} up --build dbPostgres minio minio_init -d
+	GIT_HASH=${FILE_HASH} docker compose -p ${PROJECT_NAME} up --build dbPostgres minio minio_init clamav -d
 
 dev_up: stop ## Runs local environment
 	${info Running docker-compose up...}
-	GIT_HASH=${FILE_HASH} docker compose -p ${PROJECT_NAME} up --build dbPostgres minio minio_init
+	GIT_HASH=${FILE_HASH} docker compose -p ${PROJECT_NAME} up --build dbPostgres minio minio_init clamav
 
 build_in_docker: ## Builds binary in docker
 	@echo "-- building docker image"
@@ -118,5 +113,11 @@ build: ## Builds binary
 	@echo "-- building binary"
 	go build -o ./bin/lazarus ./cmd
 
-.PHONY: help install-lint test gogen prepare_ci lint stop dev_up dev_up_ci build run migrate_new vulcheck coverage build_in_docker logs_docker deploy logs install_service patch_sudoers
+build_inspector: ## Builds dockerized inspector
+	@echo "-- building inspector image"
+	docker build -t ${DOCKER_HUB_USER}/inspector:latest -f Dockerfile_inspector .
+	docker login
+	docker push ${DOCKER_HUB_USER}/inspector:latest
+
+.PHONY: help install-lint build_inspector test gogen prepare_ci lint stop dev_up dev_up_ci build run migrate_new vulcheck coverage build_in_docker logs_docker deploy logs install_service patch_sudoers
 .DEFAULT_GOAL := help

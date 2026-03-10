@@ -83,3 +83,8 @@ func (r *Repo) DeleteArtifact(ctx context.Context, userID, artifactID uuid.UUID)
 	_, err := r.db.Client().ExecContext(ctx, q, artifactID, userID)
 	return err
 }
+
+func (r *Repo) GetQuarantinedArtifacts(ctx context.Context) ([]*entities.Artifact, error) {
+	q := fmt.Sprintf("SELECT %s FROM %s WHERE status = $1", artifactColumnsStr, TableArtifacts)
+	return database.QueryRowsToStruct[entities.Artifact](ctx, r.db.Client(), q, entities.ArtifactStatusQuarantined)
+}

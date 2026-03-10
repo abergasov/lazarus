@@ -6,9 +6,11 @@ import (
 	"lazarus/internal/config"
 	"lazarus/internal/logger"
 	"lazarus/internal/repository"
+	"lazarus/internal/service/artifact_inspector"
 	"lazarus/internal/service/artifact_manager"
 	"lazarus/internal/service/authorization"
 	"lazarus/internal/service/user"
+	"lazarus/internal/storage/antivirus"
 	"lazarus/internal/storage/bucket"
 	"lazarus/internal/storage/database"
 	"os"
@@ -29,14 +31,19 @@ type TestContainer struct {
 
 	Repo *repository.Repo
 
-	ServiceAuth            *authorization.Service
-	ServiceUser            *user.Service
-	ServiceArtifactManager *artifact_manager.Service
+	ServiceAuth              *authorization.Service
+	ServiceUser              *user.Service
+	ServiceArtifactManager   *artifact_manager.Service
+	ServiceArtifactInspector *artifact_inspector.Service
+	ServiceAntivirus         *antivirus.Client
 }
 
 func GetClean(t *testing.T) *TestContainer {
+	return GetCleanWithConfig(t, GetTestConfig(t))
+}
+
+func GetCleanWithConfig(t *testing.T, conf *config.AppConfig) *TestContainer {
 	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Minute)
-	conf := getTestConfig(t)
 	prepareTestDB(ctx, t, &conf.ConfigDB)
 
 	dbConnect, err := database.InitDBConnect(ctx, &conf.ConfigDB, guessMigrationDir(t))
@@ -54,9 +61,11 @@ func GetClean(t *testing.T) *TestContainer {
 	repo := repository.InitRepo(dbConnect)
 
 	// service init
+	srvAntivirus := antivirus.NewClient(conf.ClamavURL, 1*time.Minute)
 	srvAuth := authorization.NewService(ctx, appLog, conf, repo)
 	srvUser := user.NewService(ctx, appLog, conf, repo)
 	srvArtifactManager := artifact_manager.NewService(ctx, appLog, conf, repo, storageClient)
+	srvArtifactInspector := artifact_inspector.NewService(ctx, appLog, conf, repo, storageClient, srvAntivirus)
 	return &TestContainer{
 		Ctx:    ctx,
 		Cfg:    conf,
@@ -67,9 +76,11 @@ func GetClean(t *testing.T) *TestContainer {
 
 		Repo: repo,
 
-		ServiceAuth:            srvAuth,
-		ServiceUser:            srvUser,
-		ServiceArtifactManager: srvArtifactManager,
+		ServiceAuth:              srvAuth,
+		ServiceUser:              srvUser,
+		ServiceArtifactManager:   srvArtifactManager,
+		ServiceArtifactInspector: srvArtifactInspector,
+		ServiceAntivirus:         srvAntivirus,
 	}
 }
 
@@ -91,7 +102,7 @@ func prepareTestDB(ctx context.Context, t *testing.T, cnf *config.DBConf) {
 	}
 }
 
-func getTestConfig(t *testing.T) *config.AppConfig {
+func GetTestConfig(t *testing.T) *config.AppConfig {
 	return &config.AppConfig{
 		AppPort: 0,
 		ConfigDB: config.DBConf{
@@ -102,16 +113,17 @@ func getTestConfig(t *testing.T) *config.AppConfig {
 			DBName:         "lazarus_test",
 			MaxConnections: 10,
 		},
-		MaxUploadSizeBytes: 1024,
-		RawUploadsDir:      t.TempDir(),
+		ClamavURL:     "127.0.0.1:3310",
+		RawUploadsDir: t.TempDir(),
 		S3: &bucket.S3Conf{
-			Region:          "us-east-1",
-			Endpoint:        "http://127.0.0.1:9000",
-			Bucket:          "lazarus",
-			AccessKeyID:     "minioadmin",
-			SecretAccessKey: "minioadmin",
-			Prefix:          "test/",
-			UsePathStyle:    true,
+			Region:             "us-east-1",
+			Endpoint:           "http://127.0.0.1:9000",
+			Bucket:             "lazarus",
+			AccessKeyID:        "minioadmin",
+			SecretAccessKey:    "minioadmin",
+			Prefix:             "test/",
+			UsePathStyle:       true,
+			MaxUploadSizeBytes: 1024,
 		},
 	}
 }

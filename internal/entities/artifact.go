@@ -12,6 +12,7 @@ type (
 	ArtifactStorage string
 	ArtifactKind    string
 	ArtifactStatus  string
+	ArtifactClass   string
 )
 
 const (
@@ -29,6 +30,11 @@ const (
 	ArtifactStatusQuarantined ArtifactStatus = "QUARANTINED"
 	ArtifactStatusClean       ArtifactStatus = "CLEAN"
 	ArtifactStatusRejected    ArtifactStatus = "REJECTED"
+
+	ArtifactClassUnknown ArtifactClass = "unknown"
+	ArtifactClassImage   ArtifactClass = "image"
+	ArtifactClassText    ArtifactClass = "text"
+	ArtifactClassPDF     ArtifactClass = "pdf"
 )
 
 func (k ArtifactStatus) Valid() bool {

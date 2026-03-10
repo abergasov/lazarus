@@ -13,6 +13,7 @@ import (
 
 type Client struct {
 	s3     *s3.Client
+	cfg    *S3Conf
 	bucket string
 	prefix string
 }
@@ -41,6 +42,7 @@ func NewClient(ctx context.Context, cfg *S3Conf) (*Client, error) {
 
 	return &Client{
 		s3:     client,
+		cfg:    cfg,
 		bucket: cfg.Bucket,
 		prefix: cfg.Prefix,
 	}, nil
@@ -79,9 +81,12 @@ func (c *Client) DownloadBytes(ctx context.Context, path string) ([]byte, error)
 	}
 	defer r.Close() //nolint:errcheck // it ok
 
-	b, err := io.ReadAll(r)
+	b, err := io.ReadAll(io.LimitReader(r, c.cfg.MaxUploadSizeBytes+1))
 	if err != nil {
 		return nil, fmt.Errorf("read object body: %w", err)
+	}
+	if int64(len(b)) > c.cfg.MaxUploadSizeBytes {
+		return nil, fmt.Errorf("object size %d bytes exceeds max allowed size %d bytes", len(b), c.cfg.MaxUploadSizeBytes)
 	}
 	return b, nil
 }

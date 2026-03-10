@@ -68,7 +68,7 @@ func TestServiceUploadNegative(t *testing.T) {
 		"reject too large": {
 			filename:    "big.bin",
 			contentType: "application/octet-stream",
-			payload:     bytes.Repeat([]byte("a"), int(container.Cfg.MaxUploadSizeBytes+1)),
+			payload:     bytes.Repeat([]byte("a"), int(container.Cfg.S3.MaxUploadSizeBytes+1)),
 			wantErr:     "file too large",
 		},
 	}

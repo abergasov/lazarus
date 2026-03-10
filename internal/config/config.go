@@ -11,20 +11,20 @@ import (
 )
 
 type AppConfig struct {
-	AppDomain          string         `yaml:"app_domain"`
-	FrontendURL        string         `yaml:"frontend_url"`
-	SSLEnable          bool           `yaml:"ssl_enable"`
-	JWTKey             string         `yaml:"jwt_key"` //nolint:gosec // it ok
-	JWTLive            int64          `yaml:"jwt_live"`
-	GoogleAppSecret    string         `yaml:"google_app_secret"`
-	GoogleAppID        string         `yaml:"google_app_id"`
-	AppPort            int            `yaml:"app_port"`
-	RawUploadsDir      string         `yaml:"raw_uploads_dir"`       // dir for storing raw uploaded files, which will be deleted after processing
-	MaxUploadSizeBytes int64          `yaml:"max_upload_size_bytes"` // in bytes how max file size can be uploaded, e.g. 10*1024*1024 for 10MB
-	EnableTelemetry    bool           `yaml:"enable_telemetry"`
-	MigratesFolder     string         `yaml:"migrates_folder"`
-	ConfigDB           DBConf         `yaml:"conf_db"`
-	S3                 *bucket.S3Conf `yaml:"s3"`
+	AppDomain       string         `yaml:"app_domain"`
+	FrontendURL     string         `yaml:"frontend_url"`
+	SSLEnable       bool           `yaml:"ssl_enable"`
+	JWTKey          string         `yaml:"jwt_key"` //nolint:gosec // it ok
+	JWTLive         int64          `yaml:"jwt_live"`
+	GoogleAppSecret string         `yaml:"google_app_secret"`
+	GoogleAppID     string         `yaml:"google_app_id"`
+	AppPort         int            `yaml:"app_port"`
+	ClamavURL       string         `yaml:"clamav_url"`
+	RawUploadsDir   string         `yaml:"raw_uploads_dir"` // dir for storing raw uploaded files, which will be deleted after processing
+	EnableTelemetry bool           `yaml:"enable_telemetry"`
+	MigratesFolder  string         `yaml:"migrates_folder"`
+	ConfigDB        DBConf         `yaml:"conf_db"`
+	S3              *bucket.S3Conf `yaml:"s3"`
 }
 
 type DBConf struct {

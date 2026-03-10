@@ -2,6 +2,7 @@ app_port: 8000
 frontend_url: http://localhost:3000
 migrates_folder: migrations
 enable_telemetry: true
+clamav_url: clamav:3310
 conf_db:
   address: dbPostgres
   port: 5559
@@ -27,3 +28,4 @@ s3:
   secret_access_key: SECRET_KEY
   prefix: dev/
   use_path_style: false
+  max_upload_size_bytes: 1024
