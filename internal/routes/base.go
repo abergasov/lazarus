@@ -5,6 +5,7 @@ import (
 	"lazarus/internal/config"
 	"lazarus/internal/entities"
 	"lazarus/internal/logger"
+	"lazarus/internal/service/artifact_manager"
 	"lazarus/internal/service/authorization"
 	"lazarus/internal/service/user"
 	"strings"
@@ -30,8 +31,9 @@ type Server struct {
 
 	googleOAuth *oauth2.Config
 
-	srvAuth *authorization.Service
-	srvUser *user.Service
+	srvAuth            *authorization.Service
+	srvArtifactManager *artifact_manager.Service
+	srvUser            *user.Service
 }
 
 var googleScopes = []string{
@@ -44,6 +46,7 @@ func InitAppRouter(
 	log logger.AppLogger,
 	cfg *config.AppConfig,
 	srvAuth *authorization.Service,
+	srvArtifactManager *artifact_manager.Service,
 	srvUser *user.Service,
 	address string,
 	enableTelemetry bool,
@@ -59,10 +62,11 @@ func InitAppRouter(
 			WriteTimeout: 15 * time.Second,
 			IdleTimeout:  60 * time.Second,
 		}),
-		srvAuth: srvAuth,
-		srvUser: srvUser,
-		log:     log.With(logger.WithService("http")),
-		conf:    cfg,
+		srvAuth:            srvAuth,
+		srvUser:            srvUser,
+		srvArtifactManager: srvArtifactManager,
+		log:                log.With(logger.WithService("http")),
+		conf:               cfg,
 		googleOAuth: &oauth2.Config{
 			RedirectURL:  appPrefix + cfg.AppDomain + "/api/auth/google/callback",
 			ClientID:     cfg.GoogleAppID,

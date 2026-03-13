@@ -32,6 +32,7 @@ func NewTestServer(t *testing.T, container *TestContainer) *TestServer {
 		appLog,
 		container.Cfg,
 		container.ServiceAuth,
+		container.ServiceArtifactManager,
 		container.ServiceUser,
 		fmt.Sprintf(":%d", srv.appPort),
 		false,

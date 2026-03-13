@@ -44,7 +44,7 @@ func NewService(
 	return &Service{
 		ctx:          ctx,
 		cfg:          cfg,
-		log:          log,
+		log:          log.With(logger.WithService("artifact_inspector")),
 		repo:         repo,
 		bucketClient: bucketClient,
 		avClient:     avClient,
