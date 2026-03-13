@@ -42,3 +42,33 @@ func TestSanitizeResponseJSON(t *testing.T) {
 		require.Equal(t, want, utils.SanitizeResponseJSON(in))
 	}
 }
+
+func TestNormalizeLabName(t *testing.T) {
+	tests := map[string]string{
+		"":                       "",
+		"Albumin":                "albumin",
+		"ALB (Albumin)":          "alb",
+		"Serum Albumin":          "albumin",
+		"Plasma Glucose":         "glucose",
+		"Blood Urea Nitrogen":    "urea nitrogen",
+		"Total Protein":          "protein",
+		"Serum Plasma Glucose":   "glucose",
+		"Blood Total Hemoglobin": "hemoglobin",
+		"  Serum   Albumin  ":    "albumin",
+		"ALB   (Albumin)   Test": "alb test",
+
+		"Serum (something)":                "",
+		"Total (something)":                "",
+		"Blood (Whole Blood) CBC":          "cbc",
+		"serum plasma blood total calcium": "calcium",
+
+		"Serum ":   "",
+		"Serum   ": "",
+		" Serum ":  "",
+	}
+
+	for in, want := range tests {
+		require.Equal(t, want, utils.NormalizeLabName(&in))
+	}
+	require.Equal(t, "", utils.NormalizeLabName(nil))
+}

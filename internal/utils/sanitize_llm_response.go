@@ -1,6 +1,11 @@
 package utils
 
-import "strings"
+import (
+	"errors"
+	"regexp"
+	"strings"
+	"time"
+)
 
 func SanitizeResponse(s string) string {
 	s = strings.TrimSpace(s)
@@ -85,4 +90,75 @@ func SanitizeResponseJSON(s string) string {
 	default:
 		return s
 	}
+}
+
+func ExtractDateFromString(s string) (time.Time, error) {
+	s = SanitizeResponse(s)
+	layouts := []string{
+		time.Layout,
+		time.ANSIC,
+		time.UnixDate,
+		time.RubyDate,
+		time.RFC822,
+		time.RFC822Z,
+		time.RFC850,
+		time.RFC1123,
+		time.RFC1123Z,
+		time.RFC3339,
+		time.RFC3339Nano,
+		time.Kitchen,
+		time.Stamp,
+		time.StampMilli,
+		time.StampMicro,
+		time.StampNano,
+		time.DateTime,
+		time.DateOnly,
+		time.TimeOnly,
+	}
+	for _, layout := range layouts {
+		if t, errP := time.Parse(layout, s); errP == nil {
+			return t, nil
+		}
+	}
+	return time.Time{}, errors.New("invalid date")
+}
+
+var reParenthetical = regexp.MustCompile(`\s*\([^)]*\)\s*`)
+var reWhitespace = regexp.MustCompile(`\s+`)
+
+// NormalizeLabName strips parenthetical aliases, common prefixes, and normalizes whitespace.
+// NormalizeLabName strips parenthetical aliases, common prefixes, and normalizes whitespace.
+func NormalizeLabName(name *string) string {
+	if name == nil {
+		return ""
+	}
+
+	n := strings.ToLower(strings.TrimSpace(*name))
+	if n == "" {
+		return ""
+	}
+
+	n = reParenthetical.ReplaceAllString(n, " ")
+	n = reWhitespace.ReplaceAllString(strings.TrimSpace(n), " ")
+	if n == "" {
+		return ""
+	}
+
+	prefixes := map[string]struct{}{
+		"serum":  {},
+		"plasma": {},
+		"blood":  {},
+		"total":  {},
+	}
+
+	parts := strings.Fields(n)
+	for len(parts) > 0 {
+		if _, ok := prefixes[parts[0]]; !ok {
+			break
+		}
+		parts = parts[1:]
+	}
+
+	return strings.Join(parts, " ")
+
 }
