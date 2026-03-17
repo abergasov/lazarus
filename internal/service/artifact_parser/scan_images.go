@@ -112,8 +112,12 @@ func (s *Service) saveLabResults(ctx context.Context, artifact *entities.Artifac
 				Valid:  l.Unit != "",
 			},
 			Flag: flag,
-			LabName: sql.NullString{
+			NormalizedName: sql.NullString{
 				String: utils.NormalizeLabName(l.Name),
+				Valid:  l.Name != "",
+			},
+			LabName: sql.NullString{
+				String: l.Name,
 				Valid:  l.Name != "",
 			},
 			CollectedAt: collectedAt,

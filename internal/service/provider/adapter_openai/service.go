@@ -197,7 +197,7 @@ func convertMessage(m *entities.AgentRequestMessage) openai.ChatCompletionMessag
 	}
 
 	// Assistant messages with tool calls
-	if m.Role == "assistant" && len(m.ToolCalls) > 0 {
+	if m.Role == entities.RoleAIModel && len(m.ToolCalls) > 0 {
 		for _, tc := range m.ToolCalls {
 			msg.ToolCalls = append(msg.ToolCalls, openai.ToolCall{
 				ID:   tc.ID,
