@@ -35,4 +35,13 @@ func TestClientCRUD(t *testing.T) {
 	got, err := io.ReadAll(rc)
 	require.NoError(t, err)
 	require.Equal(t, payload, got)
+
+	t.Run("should delete object", func(t *testing.T) {
+		// when
+		require.NoError(t, container.BucketClient.Delete(container.Ctx, key))
+
+		// then
+		_, err = container.BucketClient.Download(container.Ctx, key)
+		require.Error(t, err)
+	})
 }

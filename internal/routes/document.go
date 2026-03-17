@@ -64,7 +64,7 @@ func (s *Server) handleDeleteDocument(c *fiber.Ctx, userID uuid.UUID) error {
 	if err != nil {
 		return c.Status(400).JSON(fiber.Map{"error": "invalid id"})
 	}
-	if err := s.docSvc.Delete(c.Context(), id, userID); err != nil {
+	if err := s.docSvc.DeleteArtifact(c.Context(), id, userID); err != nil {
 		return c.Status(500).JSON(fiber.Map{"error": err.Error()})
 	}
 	return c.SendStatus(204)
@@ -90,7 +90,7 @@ func (s *Server) handleGetDocument(c *fiber.Ctx, userID uuid.UUID) error {
 	if err != nil {
 		return c.Status(400).JSON(fiber.Map{"error": "invalid id"})
 	}
-	doc, err := s.docSvc.Get(c.Context(), id, userID)
+	doc, err := s.docSvc.GetArtifactByID(c.Context(), id, userID)
 	if err != nil {
 		return c.Status(404).JSON(fiber.Map{"error": "not found"})
 	}
@@ -147,7 +147,7 @@ func (s *Server) handleListDocuments(c *fiber.Ctx, userID uuid.UUID) error {
 	if s.docSvc == nil {
 		return c.Status(503).JSON(fiber.Map{"error": "document service not configured"})
 	}
-	docs, err := s.docSvc.ListByUser(c.Context(), userID)
+	docs, err := s.docSvc.ListArtefactsByUser(c.Context(), userID)
 	if err != nil {
 		return c.Status(500).JSON(fiber.Map{"error": err.Error()})
 	}

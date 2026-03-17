@@ -12,8 +12,8 @@ import (
 	"lazarus/internal/provider"
 	"lazarus/internal/repository"
 	"lazarus/internal/routes"
+	docsvc "lazarus/internal/service/artifact_manager"
 	"lazarus/internal/service/authorization"
-	docsvc "lazarus/internal/service/document"
 	labsvc "lazarus/internal/service/lab"
 	"lazarus/internal/service/push"
 	risksvc "lazarus/internal/service/risk"
@@ -109,17 +109,6 @@ func main() {
 
 		// Orchestrator
 		orchestrator := agent.NewOrchestrator(assembler, providerReg, toolRegistry, sessionStore, patientStore, db)
-
-		// Push notification service
-		pushService := push.NewService(db)
-
-		// Proactive scheduler
-		visitRepo := repository.NewVisitRepo(db)
-		scheduler := agent.NewScheduler(orchestrator, visitRepo, pushService)
-		go scheduler.Start(ctx)
-
-		// Re-parse any documents stuck in pending (e.g. from failed prior runs)
-		go docService.ReParsePending(ctx)
 
 		medDeps = &routes.MedHelpDeps{
 			DB:           db,
