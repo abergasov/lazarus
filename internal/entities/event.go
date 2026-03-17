@@ -8,18 +8,18 @@ import (
 	"github.com/google/uuid"
 )
 
-type EventType string
+type AuditEventType string
 
 const (
-	EventArtifactUploaded EventType = "artifact_uploaded"
-	EventArtifactDeleted  EventType = "artifact_deleted" // logical delete if you add it
+	EventArtifactUploaded AuditEventType = "artifact_uploaded"
+	EventArtifactDeleted  AuditEventType = "artifact_deleted" // logical delete if you add it
 )
 
 type AuditEvent struct {
-	ID          uuid.UUID `db:"id" json:"id"`
-	At          time.Time `db:"at" json:"at"`
-	ActorUserID uuid.UUID `db:"actor_user_id" json:"actor_user_id"` // who did it
-	Type        EventType `db:"type" json:"type"`
+	ID          uuid.UUID      `db:"id" json:"id"`
+	At          time.Time      `db:"at" json:"at"`
+	ActorUserID uuid.UUID      `db:"actor_user_id" json:"actor_user_id"` // who did it
+	Type        AuditEventType `db:"type" json:"type"`
 
 	ArtifactID *uuid.UUID      `db:"artifact_id" json:"artifact_id,omitempty"`
 	DataJSON   json.RawMessage `db:"data_json" json:"data_json"`
